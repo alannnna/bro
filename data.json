@@ -25,6 +25,12 @@
       "userId": 1,
       "name": "Sarah",
       "createdAt": "2026-01-20T17:56:45.343Z"
+    },
+    {
+      "id": 6,
+      "userId": 1,
+      "name": "Henry",
+      "createdAt": "2026-01-20T22:58:16.279Z"
     }
   ],
   "interactions": [
@@ -84,6 +90,24 @@
       "notes": "Coffee",
       "createdAt": "2026-01-20T17:56:45.343Z",
       "updatedAt": "2026-01-20T17:56:45.343Z"
+    },
+    {
+      "id": 8,
+      "userId": 1,
+      "contactId": 5,
+      "rating": null,
+      "notes": "lunch at food hall",
+      "createdAt": "2026-01-20T22:58:01.044Z",
+      "updatedAt": "2026-01-20T22:58:01.044Z"
+    },
+    {
+      "id": 9,
+      "userId": 1,
+      "contactId": 6,
+      "rating": null,
+      "notes": "Lunch at food hall",
+      "createdAt": "2026-01-20T22:58:16.279Z",
+      "updatedAt": "2026-01-20T22:58:16.279Z"
     }
   ],
   "users": [
@@ -104,6 +128,11 @@
       "token": "1028a8542d1d1af536da45faa88d1d4a8d48a1a97408e4e5e2d6105e366b4537",
       "userId": 1,
       "expiresAt": "2026-02-19T18:25:44.846Z"
+    },
+    {
+      "token": "d17a6250456b5330605247ff7a79ef3d615c22418cfc2b4e1ff99c0177d22abe",
+      "userId": 1,
+      "expiresAt": "2026-02-19T22:57:31.201Z"
     }
   ]
 }

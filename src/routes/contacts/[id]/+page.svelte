@@ -37,7 +37,11 @@
 			{#each data.interactions as interaction}
 				<div class="interaction">
 					<div class="interaction-header">
-						<span class="hearts">{renderHearts(interaction.rating)}</span>
+						{#if interaction.rating > 0}
+							<span class="hearts">{renderHearts(interaction.rating)}</span>
+						{:else}
+							<span></span>
+						{/if}
 						<span class="date">{formatDate(interaction.createdAt)}</span>
 					</div>
 					{#if interaction.notes}

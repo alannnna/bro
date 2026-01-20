@@ -104,7 +104,20 @@
 
 	<div class="form">
 		<div class="section">
-			<label for="contact">Who did you interact with?</label>
+			<label for="notes">What happened?</label>
+			<textarea
+				id="notes"
+				bind:value={notes}
+				oninput={handleNotesInput}
+				placeholder="Lunch at Sweetgreen, talked about funny health things..."
+			></textarea>
+			{#if saveStatus}
+				<div class="save-status" class:saved={saveStatus === 'Saved'}>{saveStatus}</div>
+			{/if}
+		</div>
+
+		<div class="section">
+			<label for="contact">Who?</label>
 			<div class="autocomplete">
 				<input
 					id="contact"
@@ -146,19 +159,6 @@
 			</div>
 		</div>
 
-		<div class="section">
-			<label for="notes">Notes (optional)</label>
-			<textarea
-				id="notes"
-				bind:value={notes}
-				oninput={handleNotesInput}
-				placeholder="What did you talk about?"
-			></textarea>
-			{#if saveStatus}
-				<div class="save-status" class:saved={saveStatus === 'Saved'}>{saveStatus}</div>
-			{/if}
-		</div>
-
 		{#if currentInteractionId}
 			<button class="new-btn" onclick={resetForm}>Log Another</button>
 		{:else}
@@ -176,7 +176,10 @@
 		<div class="success">{successMessage}</div>
 	{/if}
 
-	<a href="/contacts" class="contacts-link">View all contacts →</a>
+	<div class="nav-links">
+		<a href="/contacts" class="contacts-link">View all contacts →</a>
+		<a href="/interactions" class="contacts-link">View all interactions →</a>
+	</div>
 </div>
 
 <style>
@@ -376,9 +379,15 @@
 		cursor: not-allowed;
 	}
 
+	.nav-links {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		margin-top: 24px;
+	}
+
 	.contacts-link {
 		display: block;
-		margin-top: 24px;
 		text-align: center;
 		color: #007bff;
 		text-decoration: none;

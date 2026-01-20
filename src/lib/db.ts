@@ -234,3 +234,52 @@ export function getInteractionsForContact(userId: number, contactId: number): In
 		.filter((i) => i.contactId === contactId && i.userId === userId)
 		.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
+
+export interface InteractionWithContact extends Interaction {
+	contactName: string;
+}
+
+export function getAllInteractions(userId: number): InteractionWithContact[] {
+	const db = loadDb();
+	const userContacts = db.contacts.filter((c) => c.userId === userId);
+	const contactMap = new Map(userContacts.map((c) => [c.id, c.name]));
+
+	return db.interactions
+		.filter((i) => i.userId === userId)
+		.map((i) => ({
+			...i,
+			contactName: contactMap.get(i.contactId) || 'Unknown'
+		}))
+		.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+export interface InteractionStats {
+	positiveToday: number;
+	positiveThisWeek: number;
+	positiveThisMonth: number;
+}
+
+export function getInteractionStats(userId: number): InteractionStats {
+	const db = loadDb();
+	const now = new Date();
+	const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+	const startOfWeek = new Date(startOfToday);
+	startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+	const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+	const userInteractions = db.interactions.filter((i) => i.userId === userId);
+
+	const isPositive = (rating: number | null) => rating === null || rating === 0 || rating >= 3;
+
+	return {
+		positiveToday: userInteractions.filter(
+			(i) => isPositive(i.rating) && new Date(i.createdAt) >= startOfToday
+		).length,
+		positiveThisWeek: userInteractions.filter(
+			(i) => isPositive(i.rating) && new Date(i.createdAt) >= startOfWeek
+		).length,
+		positiveThisMonth: userInteractions.filter(
+			(i) => isPositive(i.rating) && new Date(i.createdAt) >= startOfMonth
+		).length
+	};
+}
