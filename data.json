@@ -31,6 +31,12 @@
       "userId": 1,
       "name": "Henry",
       "createdAt": "2026-01-20T22:58:16.279Z"
+    },
+    {
+      "id": 7,
+      "userId": 1,
+      "name": "Jake",
+      "createdAt": "2026-01-20T23:05:18.851Z"
     }
   ],
   "interactions": [
@@ -108,6 +114,33 @@
       "notes": "Lunch at food hall",
       "createdAt": "2026-01-20T22:58:16.279Z",
       "updatedAt": "2026-01-20T22:58:16.279Z"
+    },
+    {
+      "id": 10,
+      "userId": 1,
+      "contactId": 5,
+      "rating": null,
+      "notes": "lunch at food hall",
+      "createdAt": "2026-01-20T23:05:18.849Z",
+      "updatedAt": "2026-01-20T23:05:18.849Z"
+    },
+    {
+      "id": 11,
+      "userId": 1,
+      "contactId": 7,
+      "rating": null,
+      "notes": "lunch at food hall",
+      "createdAt": "2026-01-20T23:05:18.851Z",
+      "updatedAt": "2026-01-20T23:05:18.851Z"
+    },
+    {
+      "id": 12,
+      "userId": 1,
+      "contactId": 6,
+      "rating": null,
+      "notes": "lunch at food hall",
+      "createdAt": "2026-01-20T23:05:18.852Z",
+      "updatedAt": "2026-01-20T23:05:18.852Z"
     }
   ],
   "users": [
