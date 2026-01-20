@@ -1,9 +1,15 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { join, dirname } from 'path';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 
-const DB_PATH = join(process.cwd(), 'data.json');
+const DATA_DIR = process.env.DATA_DIR || process.cwd();
+const DB_PATH = join(DATA_DIR, 'data.json');
+
+// Ensure directory exists
+if (!existsSync(dirname(DB_PATH))) {
+	mkdirSync(dirname(DB_PATH), { recursive: true });
+}
 
 interface User {
 	id: number;
