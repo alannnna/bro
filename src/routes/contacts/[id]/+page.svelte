@@ -13,8 +13,8 @@
 		});
 	}
 
-	function renderStars(rating: number): string {
-		return '★'.repeat(rating) + '☆'.repeat(5 - rating);
+	function renderHearts(rating: number): string {
+		return '♥'.repeat(rating) + '♡'.repeat(5 - rating);
 	}
 </script>
 
@@ -37,7 +37,7 @@
 			{#each data.interactions as interaction}
 				<div class="interaction">
 					<div class="interaction-header">
-						<span class="stars">{renderStars(interaction.rating)}</span>
+						<span class="hearts">{renderHearts(interaction.rating)}</span>
 						<span class="date">{formatDate(interaction.createdAt)}</span>
 					</div>
 					{#if interaction.notes}
@@ -124,9 +124,9 @@
 		margin-bottom: 8px;
 	}
 
-	.stars {
+	.hearts {
 		font-size: 20px;
-		color: #ffc107;
+		color: #e74c3c;
 		letter-spacing: 2px;
 	}
 

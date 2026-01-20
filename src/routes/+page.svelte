@@ -115,7 +115,7 @@
 						onmouseleave={() => (hoverRating = 0)}
 						onclick={() => setRating(star)}
 					>
-						★
+						♥
 					</button>
 				{/each}
 			</div>
@@ -258,11 +258,11 @@
 	.star:hover,
 	.star.hovered {
 		transform: scale(1.1);
-		color: #ffdb58;
+		color: #ff6b6b;
 	}
 
 	.star.active {
-		color: #ffc107;
+		color: #e74c3c;
 	}
 
 	.autocomplete {
