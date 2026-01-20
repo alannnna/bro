@@ -1,5 +1,51 @@
 <script lang="ts">
 	let { data } = $props();
+	let sortBy = $state<'name' | 'recent'>('recent');
+
+	const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
+	const ONE_MONTH = 30 * 24 * 60 * 60 * 1000;
+
+	let sortedContacts = $derived(() => {
+		const contacts = [...data.contacts];
+		if (sortBy === 'name') {
+			return contacts.sort((a, b) => a.name.localeCompare(b.name));
+		} else {
+			return contacts.sort((a, b) => {
+				if (!a.lastInteractionAt && !b.lastInteractionAt) return 0;
+				if (!a.lastInteractionAt) return 1;
+				if (!b.lastInteractionAt) return -1;
+				return new Date(b.lastInteractionAt).getTime() - new Date(a.lastInteractionAt).getTime();
+			});
+		}
+	});
+
+	function getTimeSinceClass(lastInteractionAt: string | null): string {
+		if (!lastInteractionAt) return 'stale-month';
+		const elapsed = Date.now() - new Date(lastInteractionAt).getTime();
+		if (elapsed > ONE_MONTH) return 'stale-month';
+		if (elapsed > ONE_WEEK) return 'stale-week';
+		return '';
+	}
+
+	function formatRelativeTime(dateStr: string | null): string {
+		if (!dateStr) return 'No interactions';
+		const date = new Date(dateStr);
+		const now = Date.now();
+		const elapsed = now - date.getTime();
+
+		const minutes = Math.floor(elapsed / (1000 * 60));
+		const hours = Math.floor(elapsed / (1000 * 60 * 60));
+		const days = Math.floor(elapsed / (1000 * 60 * 60 * 24));
+		const weeks = Math.floor(days / 7);
+		const months = Math.floor(days / 30);
+
+		if (minutes < 1) return 'Just now';
+		if (minutes < 60) return `${minutes}m ago`;
+		if (hours < 24) return `${hours}h ago`;
+		if (days < 7) return `${days}d ago`;
+		if (weeks < 4) return `${weeks}w ago`;
+		return `${months}mo ago`;
+	}
 </script>
 
 <div class="container">
@@ -8,11 +54,30 @@
 	{#if data.contacts.length === 0}
 		<p class="empty">No contacts yet. Log an interaction to add your first contact.</p>
 	{:else}
+		<div class="sort-controls">
+			<span class="sort-label">Sort by:</span>
+			<button
+				class="sort-btn"
+				class:active={sortBy === 'name'}
+				onclick={() => (sortBy = 'name')}
+			>
+				Name
+			</button>
+			<button
+				class="sort-btn"
+				class:active={sortBy === 'recent'}
+				onclick={() => (sortBy = 'recent')}
+			>
+				Recent
+			</button>
+		</div>
+
 		<ul class="contact-list">
-			{#each data.contacts as contact}
+			{#each sortedContacts() as contact}
 				<li>
-					<a href="/contacts/{contact.id}" class="contact-item">
-						{contact.name}
+					<a href="/contacts/{contact.id}" class="contact-item {getTimeSinceClass(contact.lastInteractionAt)}">
+						<span class="contact-name">{contact.name}</span>
+						<span class="contact-time">{formatRelativeTime(contact.lastInteractionAt)}</span>
 					</a>
 				</li>
 			{/each}
@@ -40,6 +105,38 @@
 		padding: 40px 20px;
 	}
 
+	.sort-controls {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-bottom: 16px;
+	}
+
+	.sort-label {
+		color: #666;
+		font-size: 14px;
+	}
+
+	.sort-btn {
+		padding: 6px 12px;
+		border: 1px solid #ddd;
+		background: white;
+		border-radius: 6px;
+		font-size: 14px;
+		cursor: pointer;
+		transition: all 0.15s;
+	}
+
+	.sort-btn:hover {
+		border-color: #007bff;
+	}
+
+	.sort-btn.active {
+		background: #007bff;
+		color: white;
+		border-color: #007bff;
+	}
+
 	.contact-list {
 		list-style: none;
 		padding: 0;
@@ -58,7 +155,9 @@
 	}
 
 	.contact-item {
-		display: block;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
 		padding: 16px 20px;
 		color: #333;
 		text-decoration: none;
@@ -67,6 +166,39 @@
 
 	.contact-item:hover {
 		background-color: #f8f9fa;
+	}
+
+	.contact-item.stale-week {
+		background-color: #fff8e6;
+	}
+
+	.contact-item.stale-week:hover {
+		background-color: #fff3cd;
+	}
+
+	.contact-item.stale-month {
+		background-color: #ffe6e6;
+	}
+
+	.contact-item.stale-month:hover {
+		background-color: #ffcccc;
+	}
+
+	.contact-name {
+		font-weight: 500;
+	}
+
+	.contact-time {
+		font-size: 13px;
+		color: #888;
+	}
+
+	.stale-week .contact-time {
+		color: #997a00;
+	}
+
+	.stale-month .contact-time {
+		color: #cc4444;
 	}
 
 	.back-link {

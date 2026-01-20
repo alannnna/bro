@@ -9,6 +9,16 @@
       "id": 2,
       "name": "Jake",
       "createdAt": "2026-01-20T17:37:59.218Z"
+    },
+    {
+      "id": 3,
+      "name": "Test - Week Old",
+      "createdAt": "2026-01-10T12:00:00.000Z"
+    },
+    {
+      "id": 4,
+      "name": "Test - Month Old",
+      "createdAt": "2025-12-01T12:00:00.000Z"
     }
   ],
   "interactions": [
@@ -35,6 +45,30 @@
       "notes": "Apps",
       "createdAt": "2026-01-20T17:37:59.219Z",
       "updatedAt": "2026-01-20T17:37:59.219Z"
+    },
+    {
+      "id": 4,
+      "contactId": 1,
+      "rating": 5,
+      "notes": "test",
+      "createdAt": "2026-01-20T17:43:33.690Z",
+      "updatedAt": "2026-01-20T17:43:33.690Z"
+    },
+    {
+      "id": 5,
+      "contactId": 3,
+      "rating": 3,
+      "notes": "Test interaction from 10 days ago",
+      "createdAt": "2026-01-10T12:00:00.000Z",
+      "updatedAt": "2026-01-10T12:00:00.000Z"
+    },
+    {
+      "id": 6,
+      "contactId": 4,
+      "rating": 4,
+      "notes": "Test interaction from 50 days ago",
+      "createdAt": "2025-12-01T12:00:00.000Z",
+      "updatedAt": "2025-12-01T12:00:00.000Z"
     }
   ]
 }

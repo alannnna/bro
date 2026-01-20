@@ -94,9 +94,25 @@ export function updateInteraction(
 	return interaction;
 }
 
-export function getAllContacts(): Contact[] {
+export interface ContactWithLastInteraction {
+	id: number;
+	name: string;
+	createdAt: string;
+	lastInteractionAt: string | null;
+}
+
+export function getAllContacts(): ContactWithLastInteraction[] {
 	const db = loadDb();
-	return db.contacts.sort((a, b) => a.name.localeCompare(b.name));
+	return db.contacts.map((contact) => {
+		const interactions = db.interactions.filter((i) => i.contactId === contact.id);
+		const lastInteraction = interactions.sort(
+			(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+		)[0];
+		return {
+			...contact,
+			lastInteractionAt: lastInteraction?.createdAt || null
+		};
+	});
 }
 
 export function getContactById(id: number): Contact | null {
