@@ -19,6 +19,12 @@
       "id": 4,
       "name": "Test - Month Old",
       "createdAt": "2025-12-01T12:00:00.000Z"
+    },
+    {
+      "id": 5,
+      "userId": 1,
+      "name": "Sarah",
+      "createdAt": "2026-01-20T17:56:45.343Z"
     }
   ],
   "interactions": [
@@ -69,6 +75,30 @@
       "notes": "Test interaction from 50 days ago",
       "createdAt": "2025-12-01T12:00:00.000Z",
       "updatedAt": "2025-12-01T12:00:00.000Z"
+    },
+    {
+      "id": 7,
+      "userId": 1,
+      "contactId": 5,
+      "rating": 5,
+      "notes": "Coffee",
+      "createdAt": "2026-01-20T17:56:45.343Z",
+      "updatedAt": "2026-01-20T17:56:45.343Z"
+    }
+  ],
+  "users": [
+    {
+      "id": 1,
+      "username": "alanna",
+      "passwordHash": "$2b$10$6YE3zNCaC7xWjXcPPHtkSeS4duD/iPOKzE7Y4XDo/TrdfU/pC83dO",
+      "createdAt": "2026-01-20T17:56:36.225Z"
+    }
+  ],
+  "sessions": [
+    {
+      "token": "03d62947530927623e5cf4525ffaef8c03204890f992ac29e6857a066bf997c1",
+      "userId": 1,
+      "expiresAt": "2026-02-19T17:56:36.285Z"
     }
   ]
 }

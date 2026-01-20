@@ -49,6 +49,13 @@
 </script>
 
 <div class="container">
+	<header class="header">
+		<span class="username">{data.user.username}</span>
+		<form action="/logout" method="POST">
+			<button type="submit" class="logout-btn">Log out</button>
+		</form>
+	</header>
+
 	<h1>Contacts</h1>
 
 	{#if data.contacts.length === 0}
@@ -93,6 +100,32 @@
 		margin: 40px auto;
 		padding: 20px;
 		font-family: system-ui, sans-serif;
+	}
+
+	.header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 20px;
+		padding-bottom: 16px;
+		border-bottom: 1px solid #eee;
+	}
+
+	.username {
+		font-weight: 500;
+		color: #333;
+	}
+
+	.logout-btn {
+		background: none;
+		border: none;
+		color: #666;
+		cursor: pointer;
+		font-size: 14px;
+	}
+
+	.logout-btn:hover {
+		color: #cc0000;
 	}
 
 	h1 {
