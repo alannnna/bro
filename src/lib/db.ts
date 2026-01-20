@@ -80,7 +80,7 @@ export async function registerUser(username: string, password: string): Promise<
 
 	const passwordHash = await bcrypt.hash(password, 10);
 	const user: User = {
-		id: db.users.length + 1,
+		id: Math.max(...db.users.map((u) => u.id), 0) + 1,
 		username,
 		passwordHash,
 		createdAt: new Date().toISOString()
@@ -158,7 +158,7 @@ export function findOrCreateContact(userId: number, name: string): Contact {
 	if (existing) return existing;
 
 	const contact: Contact = {
-		id: db.contacts.length + 1,
+		id: Math.max(...db.contacts.map((c) => c.id), 0) + 1,
 		userId,
 		name,
 		createdAt: new Date().toISOString()
@@ -176,7 +176,7 @@ export function createInteraction(
 ): Interaction {
 	const db = loadDb();
 	const interaction: Interaction = {
-		id: db.interactions.length + 1,
+		id: Math.max(...db.interactions.map((i) => i.id), 0) + 1,
 		userId,
 		contactIds,
 		rating,
