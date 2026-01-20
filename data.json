@@ -1,0 +1,40 @@
+{
+  "contacts": [
+    {
+      "id": 1,
+      "name": "Sarah",
+      "createdAt": "2026-01-20T17:37:19.687Z"
+    },
+    {
+      "id": 2,
+      "name": "Jake",
+      "createdAt": "2026-01-20T17:37:59.218Z"
+    }
+  ],
+  "interactions": [
+    {
+      "id": 1,
+      "contactId": 1,
+      "rating": 5,
+      "notes": "bro",
+      "createdAt": "2026-01-20T17:37:19.688Z",
+      "updatedAt": "2026-01-20T17:37:19.688Z"
+    },
+    {
+      "id": 2,
+      "contactId": 1,
+      "rating": 5,
+      "notes": "Coffee",
+      "createdAt": "2026-01-20T17:37:44.436Z",
+      "updatedAt": "2026-01-20T17:37:44.436Z"
+    },
+    {
+      "id": 3,
+      "contactId": 2,
+      "rating": 5,
+      "notes": "Apps",
+      "createdAt": "2026-01-20T17:37:59.219Z",
+      "updatedAt": "2026-01-20T17:37:59.219Z"
+    }
+  ]
+}
