@@ -1,4 +1,6 @@
 <script lang="ts">
+	import ContactTagInput from '$lib/components/ContactTagInput.svelte';
+
 	let { data } = $props();
 
 	interface SelectedContact {
@@ -8,118 +10,46 @@
 
 	let rating = $state(0);
 	let hoverRating = $state(0);
-	let inputValue = $state('');
 	let selectedContacts = $state<SelectedContact[]>([]);
 	let notes = $state('');
-	let suggestions = $state<{ id: number; name: string }[]>([]);
-	let showSuggestions = $state(false);
-	let currentInteractionIds = $state<number[]>([]);
+	let currentInteractionId = $state<number | null>(null);
 	let saveStatus = $state('');
 	let successMessage = $state('');
-	let inputElement: HTMLInputElement;
 
 	let saveTimeout: ReturnType<typeof setTimeout>;
-	let searchTimeout: ReturnType<typeof setTimeout>;
 
 	function setRating(value: number) {
 		rating = value;
 	}
 
-	async function searchContacts(query: string) {
-		if (!query.trim()) {
-			suggestions = [];
-			showSuggestions = false;
-			return;
-		}
-		const res = await fetch(`/api/contacts?q=${encodeURIComponent(query)}`);
-		suggestions = await res.json();
-		showSuggestions = true;
-	}
-
-	function isExactMatch(query: string): boolean {
-		return suggestions.some((s) => s.name.toLowerCase() === query.toLowerCase());
-	}
-
-	function isAlreadySelected(name: string): boolean {
-		return selectedContacts.some((c) => c.name.toLowerCase() === name.toLowerCase());
-	}
-
-	function handleContactInput(e: Event) {
-		const value = (e.target as HTMLInputElement).value;
-
-		// Check for comma to add tag
-		if (value.endsWith(',')) {
-			const name = value.slice(0, -1).trim();
-			if (name && !isAlreadySelected(name)) {
-				const isNew = !isExactMatch(name);
-				selectedContacts = [...selectedContacts, { name, isNew }];
-			}
-			inputValue = '';
-			suggestions = [];
-			showSuggestions = false;
-			return;
-		}
-
-		inputValue = value;
-		clearTimeout(searchTimeout);
-		searchTimeout = setTimeout(() => searchContacts(value), 150);
-	}
-
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Backspace' && inputValue === '' && selectedContacts.length > 0) {
-			selectedContacts = selectedContacts.slice(0, -1);
-		}
-	}
-
-	function selectContact(name: string, isNew: boolean) {
-		if (!isAlreadySelected(name)) {
-			selectedContacts = [...selectedContacts, { name, isNew }];
-		}
-		inputValue = '';
-		suggestions = [];
-		showSuggestions = false;
-		inputElement?.focus();
-	}
-
-	function removeContact(index: number) {
-		selectedContacts = selectedContacts.filter((_, i) => i !== index);
-	}
-
 	async function saveInteraction() {
 		if (selectedContacts.length === 0) return;
 
-		if (currentInteractionIds.length > 0) {
+		if (currentInteractionId) {
 			// Update existing
 			saveStatus = 'Saving...';
-			await Promise.all(
-				currentInteractionIds.map((id) =>
-					fetch(`/api/interactions/${id}`, {
-						method: 'PATCH',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ rating, notes })
-					})
-				)
-			);
+			await fetch(`/api/interactions/${currentInteractionId}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ rating, notes })
+			});
 			saveStatus = 'Saved';
 		} else {
-			// Create new for each contact
+			// Create new interaction with all contacts
 			saveStatus = 'Saving...';
-			const results = await Promise.all(
-				selectedContacts.map((contact) =>
-					fetch('/api/interactions', {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ contactName: contact.name, rating, notes })
-					}).then((res) => res.json())
-				)
-			);
+			const contactNames = selectedContacts.map((c) => c.name);
+			const res = await fetch('/api/interactions', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ contactNames, rating, notes })
+			});
+			const result = await res.json();
 			saveStatus = '';
-			const names = results.map((r) => r.contactName).join(', ');
+			const names = result.contactNames.join(', ');
 			successMessage = `Logged interaction with ${names}`;
 			setTimeout(() => (successMessage = ''), 3000);
 			// Clear form
 			rating = 0;
-			inputValue = '';
 			selectedContacts = [];
 			notes = '';
 		}
@@ -127,18 +57,14 @@
 
 	function handleNotesInput() {
 		clearTimeout(saveTimeout);
-		if (currentInteractionIds.length > 0) {
+		if (currentInteractionId) {
 			saveStatus = 'Saving...';
 			saveTimeout = setTimeout(async () => {
-				await Promise.all(
-					currentInteractionIds.map((id) =>
-						fetch(`/api/interactions/${id}`, {
-							method: 'PATCH',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({ notes })
-						})
-					)
-				);
+				await fetch(`/api/interactions/${currentInteractionId}`, {
+					method: 'PATCH',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ notes })
+				});
 				saveStatus = 'Saved';
 			}, 500);
 		}
@@ -146,10 +72,9 @@
 
 	function resetForm() {
 		rating = 0;
-		inputValue = '';
 		selectedContacts = [];
 		notes = '';
-		currentInteractionIds = [];
+		currentInteractionId = null;
 		saveStatus = '';
 	}
 </script>
@@ -179,43 +104,8 @@
 		</div>
 
 		<div class="section">
-			<label for="contact">Who?</label>
-			<div class="autocomplete">
-				<div class="tags-input" onclick={() => inputElement?.focus()}>
-					{#each selectedContacts as contact, i}
-						<span class="tag">
-							{contact.name}{#if contact.isNew} <span class="new-indicator">(new)</span>{/if}
-							<button class="tag-remove" onclick={() => removeContact(i)}>&times;</button>
-						</span>
-					{/each}
-					<input
-						bind:this={inputElement}
-						id="contact"
-						type="text"
-						value={inputValue}
-						oninput={handleContactInput}
-						onkeydown={handleKeydown}
-						onfocus={() => inputValue && searchContacts(inputValue)}
-						onblur={() => setTimeout(() => (showSuggestions = false), 200)}
-						placeholder={selectedContacts.length === 0 ? 'Start typing a name...' : ''}
-						autocomplete="off"
-					/>
-				</div>
-				{#if showSuggestions}
-					<div class="suggestions">
-						{#each suggestions.filter((s) => !isAlreadySelected(s.name)) as contact}
-							<button class="suggestion" onclick={() => selectContact(contact.name, false)}>
-								{contact.name}
-							</button>
-						{/each}
-						{#if inputValue.trim() && !isExactMatch(inputValue)}
-							<button class="suggestion add-new" onclick={() => selectContact(inputValue.trim(), true)}>
-								Add "{inputValue.trim()}" <span class="new-indicator">(new)</span>
-							</button>
-						{/if}
-					</div>
-				{/if}
-			</div>
+			<label>Who?</label>
+			<ContactTagInput bind:selectedContacts />
 		</div>
 
 		<div class="section">
@@ -236,7 +126,7 @@
 			</div>
 		</div>
 
-		{#if currentInteractionIds.length > 0}
+		{#if currentInteractionId}
 			<button class="new-btn" onclick={resetForm}>Log Another</button>
 		{:else}
 			<button
@@ -250,7 +140,7 @@
 	</div>
 
 	{#if successMessage}
-		<div class="success">{successMessage}</div>
+		<a href="/interactions" class="success">{successMessage}</a>
 	{/if}
 
 	<div class="nav-links">
@@ -345,68 +235,6 @@
 		color: #e74c3c;
 	}
 
-	.autocomplete {
-		position: relative;
-	}
-
-	.tags-input {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
-		padding: 8px 12px;
-		border: 2px solid #e0e0e0;
-		border-radius: 8px;
-		min-height: 48px;
-		cursor: text;
-		transition: border-color 0.2s;
-		align-items: center;
-	}
-
-	.tags-input:focus-within {
-		border-color: #007bff;
-	}
-
-	.tag {
-		display: inline-flex;
-		align-items: center;
-		gap: 4px;
-		padding: 4px 8px;
-		background: #e8f4ff;
-		border-radius: 4px;
-		font-size: 14px;
-		color: #333;
-	}
-
-	.tag .new-indicator {
-		color: #28a745;
-		font-size: 12px;
-	}
-
-	.tag-remove {
-		background: none;
-		border: none;
-		color: #666;
-		cursor: pointer;
-		font-size: 16px;
-		line-height: 1;
-		padding: 0 2px;
-		margin-left: 2px;
-	}
-
-	.tag-remove:hover {
-		color: #cc0000;
-	}
-
-	.tags-input input {
-		flex: 1;
-		min-width: 120px;
-		border: none;
-		padding: 4px 0;
-		font-size: 16px;
-		font-family: inherit;
-		outline: none;
-	}
-
 	textarea {
 		width: 100%;
 		padding: 12px;
@@ -425,45 +253,6 @@
 		border-color: #007bff;
 	}
 
-	.suggestions {
-		position: absolute;
-		top: 100%;
-		left: 0;
-		right: 0;
-		background: white;
-		border: 2px solid #e0e0e0;
-		border-top: none;
-		border-radius: 0 0 8px 8px;
-		max-height: 200px;
-		overflow-y: auto;
-		z-index: 10;
-	}
-
-	.suggestion {
-		display: block;
-		width: 100%;
-		padding: 10px 12px;
-		border: none;
-		background: none;
-		text-align: left;
-		cursor: pointer;
-		font-size: 16px;
-	}
-
-	.suggestion:hover {
-		background: #f0f7ff;
-	}
-
-	.suggestion.add-new {
-		border-top: 1px solid #eee;
-		color: #28a745;
-	}
-
-	.suggestion .new-indicator {
-		color: #28a745;
-		font-size: 13px;
-	}
-
 	.save-status {
 		margin-top: 8px;
 		font-size: 13px;
@@ -475,12 +264,18 @@
 	}
 
 	.success {
+		display: block;
 		margin-top: 20px;
 		padding: 16px;
 		background: #d4edda;
 		color: #155724;
 		border-radius: 8px;
 		text-align: center;
+		text-decoration: none;
+	}
+
+	.success:hover {
+		background: #c3e6cb;
 	}
 
 	.new-btn {

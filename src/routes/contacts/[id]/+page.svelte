@@ -16,6 +16,11 @@
 	function renderHearts(rating: number): string {
 		return '♥'.repeat(rating) + '♡'.repeat(5 - rating);
 	}
+
+	function getOtherContacts(contactNames: string[]): string {
+		const others = contactNames.filter((name) => name !== data.contact.name);
+		return others.length > 0 ? `with ${others.join(', ')}` : '';
+	}
 </script>
 
 <div class="container">
@@ -44,6 +49,9 @@
 						{/if}
 						<span class="date">{formatDate(interaction.createdAt)}</span>
 					</div>
+					{#if interaction.contactNames.length > 1}
+						<p class="with-others">{getOtherContacts(interaction.contactNames)}</p>
+					{/if}
 					{#if interaction.notes}
 						<p class="notes">{interaction.notes}</p>
 					{/if}
@@ -137,6 +145,13 @@
 	.date {
 		font-size: 13px;
 		color: #888;
+	}
+
+	.with-others {
+		font-size: 13px;
+		color: #888;
+		font-style: italic;
+		margin: 0 0 8px 0;
 	}
 
 	.notes {

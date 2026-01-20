@@ -34,7 +34,7 @@ interface Contact {
 interface Interaction {
 	id: number;
 	userId: number;
-	contactId: number;
+	contactIds: number[];
 	rating: number | null;
 	notes: string;
 	createdAt: string;
@@ -56,6 +56,13 @@ function loadDb(): Database {
 	// Migration: add users and sessions if missing
 	if (!data.users) data.users = [];
 	if (!data.sessions) data.sessions = [];
+	// Migration: convert contactId to contactIds
+	for (const interaction of data.interactions || []) {
+		if ('contactId' in interaction && !('contactIds' in interaction)) {
+			interaction.contactIds = [interaction.contactId];
+			delete interaction.contactId;
+		}
+	}
 	return data;
 }
 
@@ -163,7 +170,7 @@ export function findOrCreateContact(userId: number, name: string): Contact {
 
 export function createInteraction(
 	userId: number,
-	contactId: number,
+	contactIds: number[],
 	rating: number | null,
 	notes: string = ''
 ): Interaction {
@@ -171,7 +178,7 @@ export function createInteraction(
 	const interaction: Interaction = {
 		id: db.interactions.length + 1,
 		userId,
-		contactId,
+		contactIds,
 		rating,
 		notes,
 		createdAt: new Date().toISOString(),
@@ -185,7 +192,7 @@ export function createInteraction(
 export function updateInteraction(
 	userId: number,
 	id: number,
-	updates: { rating?: number; notes?: string; contactName?: string }
+	updates: { rating?: number; notes?: string; contactNames?: string[] }
 ): Interaction | null {
 	const db = loadDb();
 	const interaction = db.interactions.find((i) => i.id === id && i.userId === userId);
@@ -193,9 +200,10 @@ export function updateInteraction(
 
 	if (updates.rating !== undefined) interaction.rating = updates.rating;
 	if (updates.notes !== undefined) interaction.notes = updates.notes;
-	if (updates.contactName !== undefined) {
-		const contact = findOrCreateContact(userId, updates.contactName);
-		interaction.contactId = contact.id;
+	if (updates.contactNames !== undefined) {
+		interaction.contactIds = updates.contactNames.map(
+			(name) => findOrCreateContact(userId, name).id
+		);
 	}
 	interaction.updatedAt = new Date().toISOString();
 
@@ -226,7 +234,7 @@ export function getAllContacts(userId: number): ContactWithLastInteraction[] {
 	return db.contacts
 		.filter((c) => c.userId === userId)
 		.map((contact) => {
-			const interactions = db.interactions.filter((i) => i.contactId === contact.id);
+			const interactions = db.interactions.filter((i) => i.contactIds.includes(contact.id));
 			const lastInteraction = interactions.sort(
 				(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
 			)[0];
@@ -245,15 +253,32 @@ export function getContactById(userId: number, id: number): Contact | null {
 export function getInteractionsForContact(userId: number, contactId: number): Interaction[] {
 	const db = loadDb();
 	return db.interactions
-		.filter((i) => i.contactId === contactId && i.userId === userId)
+		.filter((i) => i.contactIds.includes(contactId) && i.userId === userId)
 		.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
-export interface InteractionWithContact extends Interaction {
-	contactName: string;
+export function getInteractionsForContactWithNames(
+	userId: number,
+	contactId: number
+): InteractionWithContacts[] {
+	const db = loadDb();
+	const userContacts = db.contacts.filter((c) => c.userId === userId);
+	const contactMap = new Map(userContacts.map((c) => [c.id, c.name]));
+
+	return db.interactions
+		.filter((i) => i.contactIds.includes(contactId) && i.userId === userId)
+		.map((i) => ({
+			...i,
+			contactNames: i.contactIds.map((id) => contactMap.get(id) || 'Unknown')
+		}))
+		.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
-export function getAllInteractions(userId: number): InteractionWithContact[] {
+export interface InteractionWithContacts extends Interaction {
+	contactNames: string[];
+}
+
+export function getAllInteractions(userId: number): InteractionWithContacts[] {
 	const db = loadDb();
 	const userContacts = db.contacts.filter((c) => c.userId === userId);
 	const contactMap = new Map(userContacts.map((c) => [c.id, c.name]));
@@ -262,7 +287,7 @@ export function getAllInteractions(userId: number): InteractionWithContact[] {
 		.filter((i) => i.userId === userId)
 		.map((i) => ({
 			...i,
-			contactName: contactMap.get(i.contactId) || 'Unknown'
+			contactNames: i.contactIds.map((id) => contactMap.get(id) || 'Unknown')
 		}))
 		.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }

@@ -1,10 +1,16 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import ContactTagInput from '$lib/components/ContactTagInput.svelte';
 
 	let { data } = $props();
 
+	interface SelectedContact {
+		name: string;
+		isNew: boolean;
+	}
+
 	let editingId = $state<number | null>(null);
-	let editContactName = $state('');
+	let editContacts = $state<SelectedContact[]>([]);
 	let editNotes = $state('');
 	let editRating = $state(0);
 	let hoverRating = $state(0);
@@ -28,26 +34,27 @@
 
 	function startEdit(interaction: typeof data.interactions[0]) {
 		editingId = interaction.id;
-		editContactName = interaction.contactName;
+		editContacts = interaction.contactNames.map((name) => ({ name, isNew: false }));
 		editNotes = interaction.notes;
 		editRating = interaction.rating || 0;
 	}
 
 	function cancelEdit() {
 		editingId = null;
-		editContactName = '';
+		editContacts = [];
 		editNotes = '';
 		editRating = 0;
 	}
 
 	async function saveEdit() {
-		if (!editingId) return;
+		if (!editingId || editContacts.length === 0) return;
 
+		const contactNames = editContacts.map((c) => c.name);
 		await fetch(`/api/interactions/${editingId}`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
-				contactName: editContactName,
+				contactNames,
 				notes: editNotes,
 				rating: editRating || null
 			})
@@ -112,7 +119,7 @@
 						<div class="edit-form">
 							<div class="edit-field">
 								<label>Who</label>
-								<input type="text" bind:value={editContactName} />
+								<ContactTagInput bind:selectedContacts={editContacts} />
 							</div>
 							<div class="edit-field">
 								<label>Notes</label>
@@ -143,7 +150,7 @@
 						</div>
 					{:else}
 						<div class="interaction-header">
-							<span class="contact-name">{interaction.contactName}</span>
+							<span class="contact-name">{interaction.contactNames.join(', ')}</span>
 							<div class="header-right">
 								<span class="date">{formatDate(interaction.createdAt)}</span>
 								<button class="edit-btn" onclick={() => startEdit(interaction)}>Edit</button>
@@ -328,24 +335,19 @@
 		color: #555;
 	}
 
-	.edit-field input,
 	.edit-field textarea {
 		padding: 10px 12px;
 		border: 2px solid #e0e0e0;
 		border-radius: 6px;
 		font-size: 15px;
 		font-family: inherit;
+		min-height: 80px;
+		resize: vertical;
 	}
 
-	.edit-field input:focus,
 	.edit-field textarea:focus {
 		outline: none;
 		border-color: #007bff;
-	}
-
-	.edit-field textarea {
-		min-height: 80px;
-		resize: vertical;
 	}
 
 	.stars {

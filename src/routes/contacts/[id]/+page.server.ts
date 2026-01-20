@@ -1,4 +1,4 @@
-import { getContactById, getInteractionsForContact } from '$lib/db';
+import { getContactById, getInteractionsForContactWithNames } from '$lib/db';
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
@@ -14,7 +14,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		throw error(404, 'Contact not found');
 	}
 
-	const interactions = getInteractionsForContact(locals.user.id, id);
+	const interactions = getInteractionsForContactWithNames(locals.user.id, id);
 
 	return { contact, interactions, user: locals.user };
 };
