@@ -41,7 +41,7 @@
 	}
 
 	async function saveInteraction() {
-		if (!contactName.trim() || rating === 0) return;
+		if (!contactName.trim()) return;
 
 		if (currentInteractionId) {
 			// Update existing
@@ -104,24 +104,6 @@
 
 	<div class="form">
 		<div class="section">
-			<label>How was the interaction?</label>
-			<div class="stars">
-				{#each [1, 2, 3, 4, 5] as star}
-					<button
-						class="star"
-						class:active={star <= rating}
-						class:hovered={star <= hoverRating}
-						onmouseenter={() => (hoverRating = star)}
-						onmouseleave={() => (hoverRating = 0)}
-						onclick={() => setRating(star)}
-					>
-						♥
-					</button>
-				{/each}
-			</div>
-		</div>
-
-		<div class="section">
 			<label for="contact">Who did you interact with?</label>
 			<div class="autocomplete">
 				<input
@@ -147,6 +129,24 @@
 		</div>
 
 		<div class="section">
+			<label>How was it? (optional)</label>
+			<div class="stars">
+				{#each [1, 2, 3, 4, 5] as star}
+					<button
+						class="star"
+						class:active={star <= rating}
+						class:hovered={star <= hoverRating}
+						onmouseenter={() => (hoverRating = star)}
+						onmouseleave={() => (hoverRating = 0)}
+						onclick={() => setRating(star)}
+					>
+						♥
+					</button>
+				{/each}
+			</div>
+		</div>
+
+		<div class="section">
 			<label for="notes">Notes (optional)</label>
 			<textarea
 				id="notes"
@@ -165,7 +165,7 @@
 			<button
 				class="submit-btn"
 				onclick={saveInteraction}
-				disabled={!contactName.trim() || rating === 0}
+				disabled={!contactName.trim()}
 			>
 				Submit
 			</button>

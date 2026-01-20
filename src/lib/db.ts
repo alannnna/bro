@@ -35,7 +35,7 @@ interface Interaction {
 	id: number;
 	userId: number;
 	contactId: number;
-	rating: number;
+	rating: number | null;
 	notes: string;
 	createdAt: string;
 	updatedAt: string;
@@ -164,7 +164,7 @@ export function findOrCreateContact(userId: number, name: string): Contact {
 export function createInteraction(
 	userId: number,
 	contactId: number,
-	rating: number,
+	rating: number | null,
 	notes: string = ''
 ): Interaction {
 	const db = loadDb();
