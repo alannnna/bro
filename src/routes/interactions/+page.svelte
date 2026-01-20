@@ -1,5 +1,13 @@
 <script lang="ts">
+	import { invalidateAll } from '$app/navigation';
+
 	let { data } = $props();
+
+	let editingId = $state<number | null>(null);
+	let editContactName = $state('');
+	let editNotes = $state('');
+	let editRating = $state(0);
+	let hoverRating = $state(0);
 
 	function formatDate(dateStr: string): string {
 		const date = new Date(dateStr);
@@ -16,6 +24,53 @@
 	function renderHearts(rating: number | null): string {
 		if (!rating) return '';
 		return '♥'.repeat(rating) + '♡'.repeat(5 - rating);
+	}
+
+	function startEdit(interaction: typeof data.interactions[0]) {
+		editingId = interaction.id;
+		editContactName = interaction.contactName;
+		editNotes = interaction.notes;
+		editRating = interaction.rating || 0;
+	}
+
+	function cancelEdit() {
+		editingId = null;
+		editContactName = '';
+		editNotes = '';
+		editRating = 0;
+	}
+
+	async function saveEdit() {
+		if (!editingId) return;
+
+		await fetch(`/api/interactions/${editingId}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				contactName: editContactName,
+				notes: editNotes,
+				rating: editRating || null
+			})
+		});
+
+		editingId = null;
+		await invalidateAll();
+	}
+
+	async function deleteInteraction() {
+		if (!editingId) return;
+		if (!confirm('Delete this interaction?')) return;
+
+		await fetch(`/api/interactions/${editingId}`, {
+			method: 'DELETE'
+		});
+
+		editingId = null;
+		await invalidateAll();
+	}
+
+	function setEditRating(value: number) {
+		editRating = editRating === value ? 0 : value;
 	}
 </script>
 
@@ -53,15 +108,53 @@
 		<div class="interactions">
 			{#each data.interactions as interaction}
 				<div class="interaction">
-					<div class="interaction-header">
-						<span class="contact-name">{interaction.contactName}</span>
-						<span class="date">{formatDate(interaction.createdAt)}</span>
-					</div>
-					{#if interaction.rating && interaction.rating > 0}
-						<div class="hearts">{renderHearts(interaction.rating)}</div>
-					{/if}
-					{#if interaction.notes}
-						<p class="notes">{interaction.notes}</p>
+					{#if editingId === interaction.id}
+						<div class="edit-form">
+							<div class="edit-field">
+								<label>Who</label>
+								<input type="text" bind:value={editContactName} />
+							</div>
+							<div class="edit-field">
+								<label>Notes</label>
+								<textarea bind:value={editNotes}></textarea>
+							</div>
+							<div class="edit-field">
+								<label>Rating</label>
+								<div class="stars">
+									{#each [1, 2, 3, 4, 5] as star}
+										<button
+											class="star"
+											class:active={star <= editRating}
+											class:hovered={star <= hoverRating}
+											onmouseenter={() => (hoverRating = star)}
+											onmouseleave={() => (hoverRating = 0)}
+											onclick={() => setEditRating(star)}
+										>
+											♥
+										</button>
+									{/each}
+								</div>
+							</div>
+							<div class="edit-actions">
+								<button class="save-btn" onclick={saveEdit}>Save</button>
+								<button class="cancel-btn" onclick={cancelEdit}>Cancel</button>
+								<button class="delete-btn" onclick={deleteInteraction}>Delete</button>
+							</div>
+						</div>
+					{:else}
+						<div class="interaction-header">
+							<span class="contact-name">{interaction.contactName}</span>
+							<div class="header-right">
+								<span class="date">{formatDate(interaction.createdAt)}</span>
+								<button class="edit-btn" onclick={() => startEdit(interaction)}>Edit</button>
+							</div>
+						</div>
+						{#if interaction.rating && interaction.rating > 0}
+							<div class="hearts">{renderHearts(interaction.rating)}</div>
+						{/if}
+						{#if interaction.notes}
+							<p class="notes">{interaction.notes}</p>
+						{/if}
 					{/if}
 				</div>
 			{/each}
@@ -175,6 +268,12 @@
 		margin-bottom: 8px;
 	}
 
+	.header-right {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+
 	.contact-name {
 		font-weight: 600;
 		color: #333;
@@ -183,6 +282,19 @@
 	.date {
 		font-size: 13px;
 		color: #888;
+	}
+
+	.edit-btn {
+		background: none;
+		border: none;
+		color: #007bff;
+		cursor: pointer;
+		font-size: 13px;
+		padding: 0;
+	}
+
+	.edit-btn:hover {
+		text-decoration: underline;
 	}
 
 	.hearts {
@@ -196,6 +308,118 @@
 		color: #555;
 		line-height: 1.5;
 		margin: 0;
+	}
+
+	.edit-form {
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+	}
+
+	.edit-field {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+
+	.edit-field label {
+		font-size: 13px;
+		font-weight: 500;
+		color: #555;
+	}
+
+	.edit-field input,
+	.edit-field textarea {
+		padding: 10px 12px;
+		border: 2px solid #e0e0e0;
+		border-radius: 6px;
+		font-size: 15px;
+		font-family: inherit;
+	}
+
+	.edit-field input:focus,
+	.edit-field textarea:focus {
+		outline: none;
+		border-color: #007bff;
+	}
+
+	.edit-field textarea {
+		min-height: 80px;
+		resize: vertical;
+	}
+
+	.stars {
+		display: flex;
+		gap: 4px;
+	}
+
+	.star {
+		background: none;
+		border: none;
+		font-size: 28px;
+		cursor: pointer;
+		color: #ddd;
+		transition: color 0.15s, transform 0.15s;
+		padding: 0;
+	}
+
+	.star:hover,
+	.star.hovered {
+		transform: scale(1.1);
+		color: #ff6b6b;
+	}
+
+	.star.active {
+		color: #e74c3c;
+	}
+
+	.edit-actions {
+		display: flex;
+		gap: 8px;
+		margin-top: 8px;
+	}
+
+	.save-btn {
+		padding: 8px 16px;
+		background: #28a745;
+		color: white;
+		border: none;
+		border-radius: 6px;
+		cursor: pointer;
+		font-size: 14px;
+	}
+
+	.save-btn:hover {
+		background: #218838;
+	}
+
+	.cancel-btn {
+		padding: 8px 16px;
+		background: #6c757d;
+		color: white;
+		border: none;
+		border-radius: 6px;
+		cursor: pointer;
+		font-size: 14px;
+	}
+
+	.cancel-btn:hover {
+		background: #5a6268;
+	}
+
+	.delete-btn {
+		padding: 8px 16px;
+		background: #dc3545;
+		color: white;
+		border: none;
+		border-radius: 6px;
+		cursor: pointer;
+		font-size: 14px;
+		margin-left: auto;
+	}
+
+	.delete-btn:hover {
+		background: #c82333;
 	}
 
 	.back-link {

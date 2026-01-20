@@ -113,11 +113,15 @@
 					}).then((res) => res.json())
 				)
 			);
-			currentInteractionIds = results.map((r) => r.id);
-			saveStatus = 'Saved';
+			saveStatus = '';
 			const names = results.map((r) => r.contactName).join(', ');
 			successMessage = `Logged interaction with ${names}`;
 			setTimeout(() => (successMessage = ''), 3000);
+			// Clear form
+			rating = 0;
+			inputValue = '';
+			selectedContacts = [];
+			notes = '';
 		}
 	}
 
@@ -411,7 +415,8 @@
 		font-size: 16px;
 		font-family: inherit;
 		transition: border-color 0.2s;
-		min-height: 100px;
+		height: 3.5em;
+		line-height: 1.5;
 		resize: vertical;
 	}
 

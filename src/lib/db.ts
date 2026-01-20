@@ -185,7 +185,7 @@ export function createInteraction(
 export function updateInteraction(
 	userId: number,
 	id: number,
-	updates: { rating?: number; notes?: string }
+	updates: { rating?: number; notes?: string; contactName?: string }
 ): Interaction | null {
 	const db = loadDb();
 	const interaction = db.interactions.find((i) => i.id === id && i.userId === userId);
@@ -193,10 +193,24 @@ export function updateInteraction(
 
 	if (updates.rating !== undefined) interaction.rating = updates.rating;
 	if (updates.notes !== undefined) interaction.notes = updates.notes;
+	if (updates.contactName !== undefined) {
+		const contact = findOrCreateContact(userId, updates.contactName);
+		interaction.contactId = contact.id;
+	}
 	interaction.updatedAt = new Date().toISOString();
 
 	saveDb(db);
 	return interaction;
+}
+
+export function deleteInteraction(userId: number, id: number): boolean {
+	const db = loadDb();
+	const index = db.interactions.findIndex((i) => i.id === id && i.userId === userId);
+	if (index === -1) return false;
+
+	db.interactions.splice(index, 1);
+	saveDb(db);
+	return true;
 }
 
 export interface ContactWithLastInteraction {
