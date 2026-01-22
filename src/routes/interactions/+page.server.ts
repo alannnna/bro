@@ -7,8 +7,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		throw redirect(302, '/login');
 	}
 
-	const interactions = getAllInteractions(locals.user.id);
-	const stats = getInteractionStats(locals.user.id);
+	const interactions = await getAllInteractions(locals.user.id);
+	const stats = await getInteractionStats(locals.user.id);
 
 	return { interactions, stats, user: locals.user };
 };

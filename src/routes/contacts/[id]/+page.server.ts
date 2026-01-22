@@ -8,13 +8,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}
 
 	const id = parseInt(params.id);
-	const contact = getContactById(locals.user.id, id);
+	const contact = await getContactById(locals.user.id, id);
 
 	if (!contact) {
 		throw error(404, 'Contact not found');
 	}
 
-	const interactions = getInteractionsForContactWithNames(locals.user.id, id);
+	const interactions = await getInteractionsForContactWithNames(locals.user.id, id);
 
 	return { contact, interactions, user: locals.user };
 };

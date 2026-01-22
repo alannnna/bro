@@ -1,16 +1,15 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
-import { join, dirname } from 'path';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
+import { eq, and, ilike, gte, inArray, desc } from 'drizzle-orm';
+import * as schema from './schema';
+import { DATABASE_URL } from '$env/static/private';
 
-const DATA_DIR = process.env.DATA_DIR || process.cwd();
-const DB_PATH = join(DATA_DIR, 'data.json');
+const client = postgres(DATABASE_URL);
+export const db = drizzle(client, { schema });
 
-// Ensure directory exists
-if (!existsSync(dirname(DB_PATH))) {
-	mkdirSync(dirname(DB_PATH), { recursive: true });
-}
-
+// Types
 interface User {
 	id: number;
 	username: string;
@@ -41,61 +40,37 @@ interface Interaction {
 	updatedAt: string;
 }
 
-interface Database {
-	users: User[];
-	sessions: Session[];
-	contacts: Contact[];
-	interactions: Interaction[];
-}
-
-function loadDb(): Database {
-	if (!existsSync(DB_PATH)) {
-		return { users: [], sessions: [], contacts: [], interactions: [] };
-	}
-	const data = JSON.parse(readFileSync(DB_PATH, 'utf-8'));
-	// Migration: add users and sessions if missing
-	if (!data.users) data.users = [];
-	if (!data.sessions) data.sessions = [];
-	// Migration: convert contactId to contactIds
-	for (const interaction of data.interactions || []) {
-		if ('contactId' in interaction && !('contactIds' in interaction)) {
-			interaction.contactIds = [interaction.contactId];
-			delete interaction.contactId;
-		}
-	}
-	return data;
-}
-
-function saveDb(db: Database): void {
-	writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
-}
-
 // Auth functions
 export async function registerUser(username: string, password: string): Promise<{ user?: User; error?: string }> {
-	const db = loadDb();
+	const existing = await db.select().from(schema.users)
+		.where(ilike(schema.users.username, username))
+		.limit(1);
 
-	if (db.users.find(u => u.username.toLowerCase() === username.toLowerCase())) {
+	if (existing.length > 0) {
 		return { error: 'Username already exists' };
 	}
 
 	const passwordHash = await bcrypt.hash(password, 10);
-	const user: User = {
-		id: Math.max(...db.users.map((u) => u.id), 0) + 1,
+	const [user] = await db.insert(schema.users).values({
 		username,
-		passwordHash,
-		createdAt: new Date().toISOString()
+		passwordHash
+	}).returning();
+
+	return {
+		user: {
+			id: user.id,
+			username: user.username,
+			passwordHash: user.passwordHash,
+			createdAt: user.createdAt.toISOString()
+		}
 	};
-
-	db.users.push(user);
-	saveDb(db);
-
-	return { user };
 }
 
 export async function loginUser(username: string, password: string): Promise<{ session?: Session; error?: string }> {
-	const db = loadDb();
+	const [user] = await db.select().from(schema.users)
+		.where(ilike(schema.users.username, username))
+		.limit(1);
 
-	const user = db.users.find(u => u.username.toLowerCase() === username.toLowerCase());
 	if (!user) {
 		return { error: 'Invalid username or password' };
 	}
@@ -105,120 +80,209 @@ export async function loginUser(username: string, password: string): Promise<{ s
 		return { error: 'Invalid username or password' };
 	}
 
-	// Create session
-	const session: Session = {
-		token: randomBytes(32).toString('hex'),
+	const token = randomBytes(32).toString('hex');
+	const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+	await db.insert(schema.sessions).values({
+		token,
 		userId: user.id,
-		expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
+		expiresAt
+	});
+
+	return {
+		session: {
+			token,
+			userId: user.id,
+			expiresAt: expiresAt.toISOString()
+		}
 	};
-
-	db.sessions.push(session);
-	saveDb(db);
-
-	return { session };
 }
 
-export function getSessionUser(token: string): User | null {
-	const db = loadDb();
+export async function getSessionUser(token: string): Promise<User | null> {
+	const [session] = await db.select().from(schema.sessions)
+		.where(eq(schema.sessions.token, token))
+		.limit(1);
 
-	const session = db.sessions.find(s => s.token === token);
 	if (!session) return null;
 
-	if (new Date(session.expiresAt) < new Date()) {
-		// Session expired, remove it
-		db.sessions = db.sessions.filter(s => s.token !== token);
-		saveDb(db);
+	if (session.expiresAt < new Date()) {
+		await db.delete(schema.sessions).where(eq(schema.sessions.token, token));
 		return null;
 	}
 
-	const user = db.users.find(u => u.id === session.userId);
-	return user || null;
-}
+	const [user] = await db.select().from(schema.users)
+		.where(eq(schema.users.id, session.userId))
+		.limit(1);
 
-export function logout(token: string): void {
-	const db = loadDb();
-	db.sessions = db.sessions.filter(s => s.token !== token);
-	saveDb(db);
-}
+	if (!user) return null;
 
-// Contact functions (now user-scoped)
-export function searchContacts(userId: number, query: string): Contact[] {
-	const db = loadDb();
-	const lower = query.toLowerCase();
-	return db.contacts
-		.filter((c) => c.userId === userId && c.name.toLowerCase().includes(lower))
-		.slice(0, 10);
-}
-
-export function findOrCreateContact(userId: number, name: string): Contact {
-	const db = loadDb();
-	const existing = db.contacts.find(
-		(c) => c.userId === userId && c.name.toLowerCase() === name.toLowerCase()
-	);
-	if (existing) return existing;
-
-	const contact: Contact = {
-		id: Math.max(...db.contacts.map((c) => c.id), 0) + 1,
-		userId,
-		name,
-		createdAt: new Date().toISOString()
+	return {
+		id: user.id,
+		username: user.username,
+		passwordHash: user.passwordHash,
+		createdAt: user.createdAt.toISOString()
 	};
-	db.contacts.push(contact);
-	saveDb(db);
-	return contact;
 }
 
-export function createInteraction(
+export async function logout(token: string): Promise<void> {
+	await db.delete(schema.sessions).where(eq(schema.sessions.token, token));
+}
+
+// Contact functions
+export async function searchContacts(userId: number, query: string): Promise<Contact[]> {
+	const contacts = await db.select().from(schema.contacts)
+		.where(and(
+			eq(schema.contacts.userId, userId),
+			ilike(schema.contacts.name, `%${query}%`)
+		))
+		.limit(10);
+
+	return contacts.map(c => ({
+		id: c.id,
+		userId: c.userId,
+		name: c.name,
+		createdAt: c.createdAt.toISOString()
+	}));
+}
+
+export async function findOrCreateContact(userId: number, name: string): Promise<Contact> {
+	const [existing] = await db.select().from(schema.contacts)
+		.where(and(
+			eq(schema.contacts.userId, userId),
+			ilike(schema.contacts.name, name)
+		))
+		.limit(1);
+
+	if (existing) {
+		return {
+			id: existing.id,
+			userId: existing.userId,
+			name: existing.name,
+			createdAt: existing.createdAt.toISOString()
+		};
+	}
+
+	const [contact] = await db.insert(schema.contacts).values({
+		userId,
+		name
+	}).returning();
+
+	return {
+		id: contact.id,
+		userId: contact.userId,
+		name: contact.name,
+		createdAt: contact.createdAt.toISOString()
+	};
+}
+
+export async function createInteraction(
 	userId: number,
 	contactIds: number[],
 	rating: number | null,
 	notes: string = ''
-): Interaction {
-	const db = loadDb();
-	const interaction: Interaction = {
-		id: Math.max(...db.interactions.map((i) => i.id), 0) + 1,
+): Promise<Interaction> {
+	const [interaction] = await db.insert(schema.interactions).values({
 		userId,
-		contactIds,
 		rating,
-		notes,
-		createdAt: new Date().toISOString(),
-		updatedAt: new Date().toISOString()
+		notes
+	}).returning();
+
+	// Insert junction table records
+	if (contactIds.length > 0) {
+		await db.insert(schema.interactionContacts).values(
+			contactIds.map(contactId => ({
+				interactionId: interaction.id,
+				contactId
+			}))
+		);
+	}
+
+	return {
+		id: interaction.id,
+		userId: interaction.userId,
+		contactIds,
+		rating: interaction.rating,
+		notes: interaction.notes,
+		createdAt: interaction.createdAt.toISOString(),
+		updatedAt: interaction.updatedAt.toISOString()
 	};
-	db.interactions.push(interaction);
-	saveDb(db);
-	return interaction;
 }
 
-export function updateInteraction(
+export async function updateInteraction(
 	userId: number,
 	id: number,
 	updates: { rating?: number; notes?: string; contactNames?: string[] }
-): Interaction | null {
-	const db = loadDb();
-	const interaction = db.interactions.find((i) => i.id === id && i.userId === userId);
-	if (!interaction) return null;
+): Promise<Interaction | null> {
+	// Check ownership
+	const [existing] = await db.select().from(schema.interactions)
+		.where(and(
+			eq(schema.interactions.id, id),
+			eq(schema.interactions.userId, userId)
+		))
+		.limit(1);
 
-	if (updates.rating !== undefined) interaction.rating = updates.rating;
-	if (updates.notes !== undefined) interaction.notes = updates.notes;
+	if (!existing) return null;
+
+	// Update the interaction
+	const updateData: { rating?: number; notes?: string; updatedAt: Date } = {
+		updatedAt: new Date()
+	};
+	if (updates.rating !== undefined) updateData.rating = updates.rating;
+	if (updates.notes !== undefined) updateData.notes = updates.notes;
+
+	const [updated] = await db.update(schema.interactions)
+		.set(updateData)
+		.where(eq(schema.interactions.id, id))
+		.returning();
+
+	// Update contacts if provided
+	let contactIds: number[] = [];
 	if (updates.contactNames !== undefined) {
-		interaction.contactIds = updates.contactNames.map(
-			(name) => findOrCreateContact(userId, name).id
-		);
-	}
-	interaction.updatedAt = new Date().toISOString();
+		// Delete existing junction records
+		await db.delete(schema.interactionContacts)
+			.where(eq(schema.interactionContacts.interactionId, id));
 
-	saveDb(db);
-	return interaction;
+		// Create new contacts and junction records
+		for (const name of updates.contactNames) {
+			const contact = await findOrCreateContact(userId, name);
+			contactIds.push(contact.id);
+		}
+
+		if (contactIds.length > 0) {
+			await db.insert(schema.interactionContacts).values(
+				contactIds.map(contactId => ({
+					interactionId: id,
+					contactId
+				}))
+			);
+		}
+	} else {
+		// Get existing contact IDs
+		const junctionRecords = await db.select().from(schema.interactionContacts)
+			.where(eq(schema.interactionContacts.interactionId, id));
+		contactIds = junctionRecords.map(r => r.contactId);
+	}
+
+	return {
+		id: updated.id,
+		userId: updated.userId,
+		contactIds,
+		rating: updated.rating,
+		notes: updated.notes,
+		createdAt: updated.createdAt.toISOString(),
+		updatedAt: updated.updatedAt.toISOString()
+	};
 }
 
-export function deleteInteraction(userId: number, id: number): boolean {
-	const db = loadDb();
-	const index = db.interactions.findIndex((i) => i.id === id && i.userId === userId);
-	if (index === -1) return false;
+export async function deleteInteraction(userId: number, id: number): Promise<boolean> {
+	const result = await db.delete(schema.interactions)
+		.where(and(
+			eq(schema.interactions.id, id),
+			eq(schema.interactions.userId, userId)
+		))
+		.returning();
 
-	db.interactions.splice(index, 1);
-	saveDb(db);
-	return true;
+	return result.length > 0;
 }
 
 export interface ContactWithLastInteraction {
@@ -229,67 +293,149 @@ export interface ContactWithLastInteraction {
 	lastInteractionAt: string | null;
 }
 
-export function getAllContacts(userId: number): ContactWithLastInteraction[] {
-	const db = loadDb();
-	return db.contacts
-		.filter((c) => c.userId === userId)
-		.map((contact) => {
-			const interactions = db.interactions.filter((i) => i.contactIds.includes(contact.id));
-			const lastInteraction = interactions.sort(
-				(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-			)[0];
-			return {
-				...contact,
-				lastInteractionAt: lastInteraction?.createdAt || null
-			};
+export async function getAllContacts(userId: number): Promise<ContactWithLastInteraction[]> {
+	const contacts = await db.select().from(schema.contacts)
+		.where(eq(schema.contacts.userId, userId));
+
+	const result: ContactWithLastInteraction[] = [];
+
+	for (const contact of contacts) {
+		// Get the most recent interaction for this contact
+		const junctionRecords = await db.select().from(schema.interactionContacts)
+			.where(eq(schema.interactionContacts.contactId, contact.id));
+
+		let lastInteractionAt: string | null = null;
+
+		if (junctionRecords.length > 0) {
+			const interactionIds = junctionRecords.map(r => r.interactionId);
+			const [lastInteraction] = await db.select().from(schema.interactions)
+				.where(inArray(schema.interactions.id, interactionIds))
+				.orderBy(desc(schema.interactions.createdAt))
+				.limit(1);
+
+			if (lastInteraction) {
+				lastInteractionAt = lastInteraction.createdAt.toISOString();
+			}
+		}
+
+		result.push({
+			id: contact.id,
+			userId: contact.userId,
+			name: contact.name,
+			createdAt: contact.createdAt.toISOString(),
+			lastInteractionAt
 		});
+	}
+
+	return result;
 }
 
-export function getContactById(userId: number, id: number): Contact | null {
-	const db = loadDb();
-	return db.contacts.find((c) => c.id === id && c.userId === userId) || null;
+export async function getContactById(userId: number, id: number): Promise<Contact | null> {
+	const [contact] = await db.select().from(schema.contacts)
+		.where(and(
+			eq(schema.contacts.id, id),
+			eq(schema.contacts.userId, userId)
+		))
+		.limit(1);
+
+	if (!contact) return null;
+
+	return {
+		id: contact.id,
+		userId: contact.userId,
+		name: contact.name,
+		createdAt: contact.createdAt.toISOString()
+	};
 }
 
-export function getInteractionsForContact(userId: number, contactId: number): Interaction[] {
-	const db = loadDb();
-	return db.interactions
-		.filter((i) => i.contactIds.includes(contactId) && i.userId === userId)
-		.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-}
+export async function getInteractionsForContact(userId: number, contactId: number): Promise<Interaction[]> {
+	// Get interaction IDs for this contact
+	const junctionRecords = await db.select().from(schema.interactionContacts)
+		.where(eq(schema.interactionContacts.contactId, contactId));
 
-export function getInteractionsForContactWithNames(
-	userId: number,
-	contactId: number
-): InteractionWithContacts[] {
-	const db = loadDb();
-	const userContacts = db.contacts.filter((c) => c.userId === userId);
-	const contactMap = new Map(userContacts.map((c) => [c.id, c.name]));
+	if (junctionRecords.length === 0) return [];
 
-	return db.interactions
-		.filter((i) => i.contactIds.includes(contactId) && i.userId === userId)
-		.map((i) => ({
-			...i,
-			contactNames: i.contactIds.map((id) => contactMap.get(id) || 'Unknown')
-		}))
-		.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+	const interactionIds = junctionRecords.map(r => r.interactionId);
+
+	const interactions = await db.select().from(schema.interactions)
+		.where(and(
+			inArray(schema.interactions.id, interactionIds),
+			eq(schema.interactions.userId, userId)
+		))
+		.orderBy(desc(schema.interactions.createdAt));
+
+	const result: Interaction[] = [];
+
+	for (const interaction of interactions) {
+		const contactJunctions = await db.select().from(schema.interactionContacts)
+			.where(eq(schema.interactionContacts.interactionId, interaction.id));
+
+		result.push({
+			id: interaction.id,
+			userId: interaction.userId,
+			contactIds: contactJunctions.map(j => j.contactId),
+			rating: interaction.rating,
+			notes: interaction.notes,
+			createdAt: interaction.createdAt.toISOString(),
+			updatedAt: interaction.updatedAt.toISOString()
+		});
+	}
+
+	return result;
 }
 
 export interface InteractionWithContacts extends Interaction {
 	contactNames: string[];
 }
 
-export function getAllInteractions(userId: number): InteractionWithContacts[] {
-	const db = loadDb();
-	const userContacts = db.contacts.filter((c) => c.userId === userId);
-	const contactMap = new Map(userContacts.map((c) => [c.id, c.name]));
+export async function getInteractionsForContactWithNames(
+	userId: number,
+	contactId: number
+): Promise<InteractionWithContacts[]> {
+	const interactions = await getInteractionsForContact(userId, contactId);
 
-	return db.interactions
-		.filter((i) => i.userId === userId)
-		.map((i) => ({
-			...i,
-			contactNames: i.contactIds.map((id) => contactMap.get(id) || 'Unknown')
-		}))
-		.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+	// Get all contacts for this user
+	const userContacts = await db.select().from(schema.contacts)
+		.where(eq(schema.contacts.userId, userId));
+	const contactMap = new Map(userContacts.map(c => [c.id, c.name]));
+
+	return interactions.map(i => ({
+		...i,
+		contactNames: i.contactIds.map(id => contactMap.get(id) || 'Unknown')
+	}));
+}
+
+export async function getAllInteractions(userId: number): Promise<InteractionWithContacts[]> {
+	const interactions = await db.select().from(schema.interactions)
+		.where(eq(schema.interactions.userId, userId))
+		.orderBy(desc(schema.interactions.createdAt));
+
+	// Get all contacts for this user
+	const userContacts = await db.select().from(schema.contacts)
+		.where(eq(schema.contacts.userId, userId));
+	const contactMap = new Map(userContacts.map(c => [c.id, c.name]));
+
+	const result: InteractionWithContacts[] = [];
+
+	for (const interaction of interactions) {
+		const junctionRecords = await db.select().from(schema.interactionContacts)
+			.where(eq(schema.interactionContacts.interactionId, interaction.id));
+
+		const contactIds = junctionRecords.map(r => r.contactId);
+
+		result.push({
+			id: interaction.id,
+			userId: interaction.userId,
+			contactIds,
+			rating: interaction.rating,
+			notes: interaction.notes,
+			createdAt: interaction.createdAt.toISOString(),
+			updatedAt: interaction.updatedAt.toISOString(),
+			contactNames: contactIds.map(id => contactMap.get(id) || 'Unknown')
+		});
+	}
+
+	return result;
 }
 
 export interface InteractionStats {
@@ -298,27 +444,27 @@ export interface InteractionStats {
 	positiveThisMonth: number;
 }
 
-export function getInteractionStats(userId: number): InteractionStats {
-	const db = loadDb();
+export async function getInteractionStats(userId: number): Promise<InteractionStats> {
 	const now = new Date();
 	const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 	const startOfWeek = new Date(startOfToday);
 	startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
 	const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-	const userInteractions = db.interactions.filter((i) => i.userId === userId);
+	const interactions = await db.select().from(schema.interactions)
+		.where(eq(schema.interactions.userId, userId));
 
 	const isPositive = (rating: number | null) => rating === null || rating === 0 || rating >= 3;
 
 	return {
-		positiveToday: userInteractions.filter(
-			(i) => isPositive(i.rating) && new Date(i.createdAt) >= startOfToday
+		positiveToday: interactions.filter(
+			(i) => isPositive(i.rating) && i.createdAt >= startOfToday
 		).length,
-		positiveThisWeek: userInteractions.filter(
-			(i) => isPositive(i.rating) && new Date(i.createdAt) >= startOfWeek
+		positiveThisWeek: interactions.filter(
+			(i) => isPositive(i.rating) && i.createdAt >= startOfWeek
 		).length,
-		positiveThisMonth: userInteractions.filter(
-			(i) => isPositive(i.rating) && new Date(i.createdAt) >= startOfMonth
+		positiveThisMonth: interactions.filter(
+			(i) => isPositive(i.rating) && i.createdAt >= startOfMonth
 		).length
 	};
 }

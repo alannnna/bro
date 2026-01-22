@@ -8,6 +8,6 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	}
 
 	const query = url.searchParams.get('q') || '';
-	const contacts = searchContacts(locals.user.id, query);
+	const contacts = await searchContacts(locals.user.id, query);
 	return json(contacts);
 };

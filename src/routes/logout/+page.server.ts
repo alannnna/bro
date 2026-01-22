@@ -6,7 +6,7 @@ export const actions: Actions = {
 	default: async ({ cookies }) => {
 		const token = cookies.get('session');
 		if (token) {
-			logout(token);
+			await logout(token);
 		}
 		cookies.delete('session', { path: '/' });
 		throw redirect(302, '/login');

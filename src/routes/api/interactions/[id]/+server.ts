@@ -10,7 +10,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 	const id = parseInt(params.id);
 	const updates = await request.json();
 
-	const interaction = updateInteraction(locals.user.id, id, updates);
+	const interaction = await updateInteraction(locals.user.id, id, updates);
 
 	if (!interaction) {
 		return json({ error: 'Interaction not found' }, { status: 404 });
@@ -25,7 +25,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 	}
 
 	const id = parseInt(params.id);
-	const deleted = deleteInteraction(locals.user.id, id);
+	const deleted = await deleteInteraction(locals.user.id, id);
 
 	if (!deleted) {
 		return json({ error: 'Interaction not found' }, { status: 404 });
