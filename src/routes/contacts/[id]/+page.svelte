@@ -1,5 +1,11 @@
 <script lang="ts">
+	import { invalidateAll } from '$app/navigation';
+
 	let { data } = $props();
+
+	let editing = $state(false);
+	let editFirstName = $state('');
+	let editLastName = $state('');
 
 	function formatDate(dateStr: string): string {
 		const date = new Date(dateStr);
@@ -21,6 +27,29 @@
 		const others = contactNames.filter((name) => name !== data.contact.name);
 		return others.length > 0 ? `with ${others.join(', ')}` : '';
 	}
+
+	function startEdit() {
+		editFirstName = data.contact.firstName;
+		editLastName = data.contact.lastName;
+		editing = true;
+	}
+
+	function cancelEdit() {
+		editing = false;
+	}
+
+	async function saveEdit() {
+		await fetch(`/api/contacts/${data.contact.id}`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				firstName: editFirstName,
+				lastName: editLastName
+			})
+		});
+		editing = false;
+		await invalidateAll();
+	}
 </script>
 
 <div class="container">
@@ -33,7 +62,27 @@
 
 	<a href="/contacts" class="back-link">← All contacts</a>
 
-	<h1>{data.contact.name}</h1>
+	{#if editing}
+		<div class="edit-form">
+			<div class="edit-field">
+				<label for="firstName">First name</label>
+				<input id="firstName" type="text" bind:value={editFirstName} />
+			</div>
+			<div class="edit-field">
+				<label for="lastName">Last name</label>
+				<input id="lastName" type="text" bind:value={editLastName} />
+			</div>
+			<div class="edit-actions">
+				<button class="save-btn" onclick={saveEdit}>Save</button>
+				<button class="cancel-btn" onclick={cancelEdit}>Cancel</button>
+			</div>
+		</div>
+	{:else}
+		<div class="name-header">
+			<h1>{data.contact.name}</h1>
+			<button class="edit-btn" onclick={startEdit}>Edit</button>
+		</div>
+	{/if}
 
 	{#if data.interactions.length === 0}
 		<p class="empty">No interactions logged yet.</p>
@@ -107,7 +156,94 @@
 	}
 
 	h1 {
+		margin: 0;
+	}
+
+	.name-header {
+		display: flex;
+		align-items: center;
+		gap: 12px;
 		margin-bottom: 24px;
+	}
+
+	.edit-btn {
+		background: none;
+		border: none;
+		color: #007bff;
+		cursor: pointer;
+		font-size: 14px;
+		padding: 0;
+	}
+
+	.edit-btn:hover {
+		text-decoration: underline;
+	}
+
+	.edit-form {
+		background: white;
+		border-radius: 12px;
+		padding: 20px;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+		margin-bottom: 24px;
+	}
+
+	.edit-field {
+		margin-bottom: 16px;
+	}
+
+	.edit-field label {
+		display: block;
+		font-size: 13px;
+		font-weight: 500;
+		color: #555;
+		margin-bottom: 6px;
+	}
+
+	.edit-field input {
+		width: 100%;
+		padding: 10px 12px;
+		border: 2px solid #e0e0e0;
+		border-radius: 6px;
+		font-size: 15px;
+		font-family: inherit;
+	}
+
+	.edit-field input:focus {
+		outline: none;
+		border-color: #007bff;
+	}
+
+	.edit-actions {
+		display: flex;
+		gap: 8px;
+	}
+
+	.save-btn {
+		padding: 8px 16px;
+		background: #28a745;
+		color: white;
+		border: none;
+		border-radius: 6px;
+		cursor: pointer;
+		font-size: 14px;
+	}
+
+	.save-btn:hover {
+		background: #218838;
+	}
+
+	.cancel-btn {
+		padding: 8px 16px;
+		background: #6c757d;
+		color: white;
+		border: none;
+		border-radius: 6px;
+		cursor: pointer;
+		font-size: 14px;
+	}
+
+	.cancel-btn:hover {
+		background: #5a6268;
 	}
 
 	.empty {

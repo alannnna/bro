@@ -21,7 +21,8 @@ export const contacts = pgTable('contacts', {
 	userId: integer('user_id')
 		.references(() => users.id)
 		.notNull(),
-	name: text('name').notNull(),
+	firstName: text('first_name').notNull(),
+	lastName: text('last_name').notNull(),
 	createdAt: timestamp('created_at').defaultNow().notNull()
 });
 

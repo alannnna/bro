@@ -2,12 +2,30 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
-import { eq, and, ilike, gte, inArray, desc } from 'drizzle-orm';
+import { eq, and, ilike, or, gte, inArray, desc } from 'drizzle-orm';
 import * as schema from './schema';
 import { DATABASE_URL } from '$env/static/private';
 
 const client = postgres(DATABASE_URL);
 export const db = drizzle(client, { schema });
+
+// Name helpers
+export function splitName(fullName: string): { firstName: string; lastName: string } {
+	const trimmed = fullName.trim();
+	const lastSpaceIndex = trimmed.lastIndexOf(' ');
+	if (lastSpaceIndex === -1) {
+		return { firstName: trimmed, lastName: '' };
+	}
+	return {
+		firstName: trimmed.substring(0, lastSpaceIndex),
+		lastName: trimmed.substring(lastSpaceIndex + 1)
+	};
+}
+
+export function combineName(firstName: string, lastName: string): string {
+	if (!lastName) return firstName;
+	return `${firstName} ${lastName}`;
+}
 
 // Types
 interface User {
@@ -26,7 +44,9 @@ interface Session {
 interface Contact {
 	id: number;
 	userId: number;
-	name: string;
+	firstName: string;
+	lastName: string;
+	name: string; // computed: firstName + lastName
 	createdAt: string;
 }
 
@@ -133,23 +153,31 @@ export async function searchContacts(userId: number, query: string): Promise<Con
 	const contacts = await db.select().from(schema.contacts)
 		.where(and(
 			eq(schema.contacts.userId, userId),
-			ilike(schema.contacts.name, `%${query}%`)
+			or(
+				ilike(schema.contacts.firstName, `%${query}%`),
+				ilike(schema.contacts.lastName, `%${query}%`)
+			)
 		))
 		.limit(10);
 
 	return contacts.map(c => ({
 		id: c.id,
 		userId: c.userId,
-		name: c.name,
+		firstName: c.firstName,
+		lastName: c.lastName,
+		name: combineName(c.firstName, c.lastName),
 		createdAt: c.createdAt.toISOString()
 	}));
 }
 
-export async function findOrCreateContact(userId: number, name: string): Promise<Contact> {
+export async function findOrCreateContact(userId: number, fullName: string): Promise<Contact> {
+	const { firstName, lastName } = splitName(fullName);
+
 	const [existing] = await db.select().from(schema.contacts)
 		.where(and(
 			eq(schema.contacts.userId, userId),
-			ilike(schema.contacts.name, name)
+			ilike(schema.contacts.firstName, firstName),
+			ilike(schema.contacts.lastName, lastName)
 		))
 		.limit(1);
 
@@ -157,20 +185,25 @@ export async function findOrCreateContact(userId: number, name: string): Promise
 		return {
 			id: existing.id,
 			userId: existing.userId,
-			name: existing.name,
+			firstName: existing.firstName,
+			lastName: existing.lastName,
+			name: combineName(existing.firstName, existing.lastName),
 			createdAt: existing.createdAt.toISOString()
 		};
 	}
 
 	const [contact] = await db.insert(schema.contacts).values({
 		userId,
-		name
+		firstName,
+		lastName
 	}).returning();
 
 	return {
 		id: contact.id,
 		userId: contact.userId,
-		name: contact.name,
+		firstName: contact.firstName,
+		lastName: contact.lastName,
+		name: combineName(contact.firstName, contact.lastName),
 		createdAt: contact.createdAt.toISOString()
 	};
 }
@@ -288,6 +321,8 @@ export async function deleteInteraction(userId: number, id: number): Promise<boo
 export interface ContactWithLastInteraction {
 	id: number;
 	userId: number;
+	firstName: string;
+	lastName: string;
 	name: string;
 	createdAt: string;
 	lastInteractionAt: string | null;
@@ -321,7 +356,9 @@ export async function getAllContacts(userId: number): Promise<ContactWithLastInt
 		result.push({
 			id: contact.id,
 			userId: contact.userId,
-			name: contact.name,
+			firstName: contact.firstName,
+			lastName: contact.lastName,
+			name: combineName(contact.firstName, contact.lastName),
 			createdAt: contact.createdAt.toISOString(),
 			lastInteractionAt
 		});
@@ -343,8 +380,43 @@ export async function getContactById(userId: number, id: number): Promise<Contac
 	return {
 		id: contact.id,
 		userId: contact.userId,
-		name: contact.name,
+		firstName: contact.firstName,
+		lastName: contact.lastName,
+		name: combineName(contact.firstName, contact.lastName),
 		createdAt: contact.createdAt.toISOString()
+	};
+}
+
+export async function updateContact(
+	userId: number,
+	id: number,
+	updates: { firstName?: string; lastName?: string }
+): Promise<Contact | null> {
+	const [existing] = await db.select().from(schema.contacts)
+		.where(and(
+			eq(schema.contacts.id, id),
+			eq(schema.contacts.userId, userId)
+		))
+		.limit(1);
+
+	if (!existing) return null;
+
+	const updateData: { firstName?: string; lastName?: string } = {};
+	if (updates.firstName !== undefined) updateData.firstName = updates.firstName;
+	if (updates.lastName !== undefined) updateData.lastName = updates.lastName;
+
+	const [updated] = await db.update(schema.contacts)
+		.set(updateData)
+		.where(eq(schema.contacts.id, id))
+		.returning();
+
+	return {
+		id: updated.id,
+		userId: updated.userId,
+		firstName: updated.firstName,
+		lastName: updated.lastName,
+		name: combineName(updated.firstName, updated.lastName),
+		createdAt: updated.createdAt.toISOString()
 	};
 }
 
@@ -397,7 +469,7 @@ export async function getInteractionsForContactWithNames(
 	// Get all contacts for this user
 	const userContacts = await db.select().from(schema.contacts)
 		.where(eq(schema.contacts.userId, userId));
-	const contactMap = new Map(userContacts.map(c => [c.id, c.name]));
+	const contactMap = new Map(userContacts.map(c => [c.id, combineName(c.firstName, c.lastName)]));
 
 	return interactions.map(i => ({
 		...i,
@@ -413,7 +485,7 @@ export async function getAllInteractions(userId: number): Promise<InteractionWit
 	// Get all contacts for this user
 	const userContacts = await db.select().from(schema.contacts)
 		.where(eq(schema.contacts.userId, userId));
-	const contactMap = new Map(userContacts.map(c => [c.id, c.name]));
+	const contactMap = new Map(userContacts.map(c => [c.id, combineName(c.firstName, c.lastName)]));
 
 	const result: InteractionWithContacts[] = [];
 

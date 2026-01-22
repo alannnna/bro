@@ -1,21 +1,29 @@
 <script lang="ts">
 	let { data } = $props();
-	let sortBy = $state<'name' | 'recent'>('recent');
+	let sortBy = $state<'recent' | 'added' | 'firstName' | 'lastName'>('recent');
 
 	const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
 	const ONE_MONTH = 30 * 24 * 60 * 60 * 1000;
 
 	let sortedContacts = $derived(() => {
 		const contacts = [...data.contacts];
-		if (sortBy === 'name') {
-			return contacts.sort((a, b) => a.name.localeCompare(b.name));
-		} else {
-			return contacts.sort((a, b) => {
-				if (!a.lastInteractionAt && !b.lastInteractionAt) return 0;
-				if (!a.lastInteractionAt) return 1;
-				if (!b.lastInteractionAt) return -1;
-				return new Date(b.lastInteractionAt).getTime() - new Date(a.lastInteractionAt).getTime();
-			});
+		switch (sortBy) {
+			case 'firstName':
+				return contacts.sort((a, b) => a.firstName.localeCompare(b.firstName));
+			case 'lastName':
+				return contacts.sort((a, b) => a.lastName.localeCompare(b.lastName));
+			case 'added':
+				return contacts.sort((a, b) =>
+					new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+				);
+			case 'recent':
+			default:
+				return contacts.sort((a, b) => {
+					if (!a.lastInteractionAt && !b.lastInteractionAt) return 0;
+					if (!a.lastInteractionAt) return 1;
+					if (!b.lastInteractionAt) return -1;
+					return new Date(b.lastInteractionAt).getTime() - new Date(a.lastInteractionAt).getTime();
+				});
 		}
 	});
 
@@ -65,17 +73,31 @@
 			<span class="sort-label">Sort by:</span>
 			<button
 				class="sort-btn"
-				class:active={sortBy === 'name'}
-				onclick={() => (sortBy = 'name')}
-			>
-				Name
-			</button>
-			<button
-				class="sort-btn"
 				class:active={sortBy === 'recent'}
 				onclick={() => (sortBy = 'recent')}
 			>
 				Recent
+			</button>
+			<button
+				class="sort-btn"
+				class:active={sortBy === 'added'}
+				onclick={() => (sortBy = 'added')}
+			>
+				Added
+			</button>
+			<button
+				class="sort-btn"
+				class:active={sortBy === 'firstName'}
+				onclick={() => (sortBy = 'firstName')}
+			>
+				First
+			</button>
+			<button
+				class="sort-btn"
+				class:active={sortBy === 'lastName'}
+				onclick={() => (sortBy = 'lastName')}
+			>
+				Last
 			</button>
 		</div>
 
