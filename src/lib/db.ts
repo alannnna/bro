@@ -151,6 +151,30 @@ export async function logout(token: string): Promise<void> {
 }
 
 // Contact functions
+export async function createContact(
+	userId: number,
+	data: { firstName: string; lastName: string; location?: string; notes?: string }
+): Promise<Contact> {
+	const [contact] = await db.insert(schema.contacts).values({
+		userId,
+		firstName: data.firstName,
+		lastName: data.lastName,
+		location: data.location || '',
+		notes: data.notes || ''
+	}).returning();
+
+	return {
+		id: contact.id,
+		userId: contact.userId,
+		firstName: contact.firstName,
+		lastName: contact.lastName,
+		name: combineName(contact.firstName, contact.lastName),
+		location: contact.location,
+		notes: contact.notes,
+		createdAt: contact.createdAt.toISOString()
+	};
+}
+
 export async function searchContacts(userId: number, query: string): Promise<Contact[]> {
 	const contacts = await db.select().from(schema.contacts)
 		.where(and(

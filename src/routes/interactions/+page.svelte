@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import ContactTagInput from '$lib/components/ContactTagInput.svelte';
+	import NavBar from '$lib/components/NavBar.svelte';
 
 	let { data } = $props();
 
@@ -82,12 +83,7 @@
 </script>
 
 <div class="container">
-	<header class="header">
-		<span class="username">{data.user.username}</span>
-		<form action="/logout" method="POST">
-			<button type="submit" class="logout-btn">Log out</button>
-		</form>
-	</header>
+	<NavBar username={data.user.username} />
 
 	<h1>All Interactions</h1>
 
@@ -167,8 +163,6 @@
 			{/each}
 		</div>
 	{/if}
-
-	<a href="/" class="back-link">← Log an interaction</a>
 </div>
 
 <style>
@@ -177,32 +171,6 @@
 		margin: 40px auto;
 		padding: 20px;
 		font-family: system-ui, sans-serif;
-	}
-
-	.header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 20px;
-		padding-bottom: 16px;
-		border-bottom: 1px solid #eee;
-	}
-
-	.username {
-		font-weight: 500;
-		color: #333;
-	}
-
-	.logout-btn {
-		background: none;
-		border: none;
-		color: #666;
-		cursor: pointer;
-		font-size: 14px;
-	}
-
-	.logout-btn:hover {
-		color: #cc0000;
 	}
 
 	h1 {
@@ -422,16 +390,5 @@
 
 	.delete-btn:hover {
 		background: #c82333;
-	}
-
-	.back-link {
-		display: inline-block;
-		margin-top: 24px;
-		color: #007bff;
-		text-decoration: none;
-	}
-
-	.back-link:hover {
-		text-decoration: underline;
 	}
 </style>

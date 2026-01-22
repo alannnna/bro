@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ContactTagInput from '$lib/components/ContactTagInput.svelte';
+	import NavBar from '$lib/components/NavBar.svelte';
 
 	let { data } = $props();
 
@@ -80,12 +81,7 @@
 </script>
 
 <div class="container">
-	<header class="header">
-		<span class="username">{data.user.username}</span>
-		<form action="/logout" method="POST">
-			<button type="submit" class="logout-btn">Log out</button>
-		</form>
-	</header>
+	<NavBar username={data.user.username} />
 
 	<h1>Log Interaction</h1>
 
@@ -142,11 +138,6 @@
 	{#if successMessage}
 		<a href="/interactions" class="success">{successMessage}</a>
 	{/if}
-
-	<div class="nav-links">
-		<a href="/contacts" class="contacts-link">View all contacts →</a>
-		<a href="/interactions" class="contacts-link">View all interactions →</a>
-	</div>
 </div>
 
 <style>
@@ -155,32 +146,6 @@
 		margin: 40px auto;
 		padding: 20px;
 		font-family: system-ui, sans-serif;
-	}
-
-	.header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 20px;
-		padding-bottom: 16px;
-		border-bottom: 1px solid #eee;
-	}
-
-	.username {
-		font-weight: 500;
-		color: #333;
-	}
-
-	.logout-btn {
-		background: none;
-		border: none;
-		color: #666;
-		cursor: pointer;
-		font-size: 14px;
-	}
-
-	.logout-btn:hover {
-		color: #cc0000;
 	}
 
 	h1 {
@@ -313,23 +278,5 @@
 	.submit-btn:disabled {
 		background: #ccc;
 		cursor: not-allowed;
-	}
-
-	.nav-links {
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-		margin-top: 24px;
-	}
-
-	.contacts-link {
-		display: block;
-		text-align: center;
-		color: #007bff;
-		text-decoration: none;
-	}
-
-	.contacts-link:hover {
-		text-decoration: underline;
 	}
 </style>
