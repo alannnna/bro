@@ -47,6 +47,8 @@ interface Contact {
 	firstName: string;
 	lastName: string;
 	name: string; // computed: firstName + lastName
+	location: string;
+	notes: string;
 	createdAt: string;
 }
 
@@ -166,6 +168,8 @@ export async function searchContacts(userId: number, query: string): Promise<Con
 		firstName: c.firstName,
 		lastName: c.lastName,
 		name: combineName(c.firstName, c.lastName),
+		location: c.location,
+		notes: c.notes,
 		createdAt: c.createdAt.toISOString()
 	}));
 }
@@ -188,6 +192,8 @@ export async function findOrCreateContact(userId: number, fullName: string): Pro
 			firstName: existing.firstName,
 			lastName: existing.lastName,
 			name: combineName(existing.firstName, existing.lastName),
+			location: existing.location,
+			notes: existing.notes,
 			createdAt: existing.createdAt.toISOString()
 		};
 	}
@@ -204,6 +210,8 @@ export async function findOrCreateContact(userId: number, fullName: string): Pro
 		firstName: contact.firstName,
 		lastName: contact.lastName,
 		name: combineName(contact.firstName, contact.lastName),
+		location: contact.location,
+		notes: contact.notes,
 		createdAt: contact.createdAt.toISOString()
 	};
 }
@@ -324,6 +332,8 @@ export interface ContactWithLastInteraction {
 	firstName: string;
 	lastName: string;
 	name: string;
+	location: string;
+	notes: string;
 	createdAt: string;
 	lastInteractionAt: string | null;
 }
@@ -359,6 +369,8 @@ export async function getAllContacts(userId: number): Promise<ContactWithLastInt
 			firstName: contact.firstName,
 			lastName: contact.lastName,
 			name: combineName(contact.firstName, contact.lastName),
+			location: contact.location,
+			notes: contact.notes,
 			createdAt: contact.createdAt.toISOString(),
 			lastInteractionAt
 		});
@@ -383,6 +395,8 @@ export async function getContactById(userId: number, id: number): Promise<Contac
 		firstName: contact.firstName,
 		lastName: contact.lastName,
 		name: combineName(contact.firstName, contact.lastName),
+		location: contact.location,
+		notes: contact.notes,
 		createdAt: contact.createdAt.toISOString()
 	};
 }
@@ -390,7 +404,7 @@ export async function getContactById(userId: number, id: number): Promise<Contac
 export async function updateContact(
 	userId: number,
 	id: number,
-	updates: { firstName?: string; lastName?: string }
+	updates: { firstName?: string; lastName?: string; location?: string; notes?: string }
 ): Promise<Contact | null> {
 	const [existing] = await db.select().from(schema.contacts)
 		.where(and(
@@ -401,9 +415,11 @@ export async function updateContact(
 
 	if (!existing) return null;
 
-	const updateData: { firstName?: string; lastName?: string } = {};
+	const updateData: { firstName?: string; lastName?: string; location?: string; notes?: string } = {};
 	if (updates.firstName !== undefined) updateData.firstName = updates.firstName;
 	if (updates.lastName !== undefined) updateData.lastName = updates.lastName;
+	if (updates.location !== undefined) updateData.location = updates.location;
+	if (updates.notes !== undefined) updateData.notes = updates.notes;
 
 	const [updated] = await db.update(schema.contacts)
 		.set(updateData)
@@ -416,6 +432,8 @@ export async function updateContact(
 		firstName: updated.firstName,
 		lastName: updated.lastName,
 		name: combineName(updated.firstName, updated.lastName),
+		location: updated.location,
+		notes: updated.notes,
 		createdAt: updated.createdAt.toISOString()
 	};
 }

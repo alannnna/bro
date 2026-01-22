@@ -6,6 +6,8 @@
 	let editing = $state(false);
 	let editFirstName = $state('');
 	let editLastName = $state('');
+	let editLocation = $state('');
+	let editNotes = $state('');
 
 	function formatDate(dateStr: string): string {
 		const date = new Date(dateStr);
@@ -31,6 +33,8 @@
 	function startEdit() {
 		editFirstName = data.contact.firstName;
 		editLastName = data.contact.lastName;
+		editLocation = data.contact.location;
+		editNotes = data.contact.notes;
 		editing = true;
 	}
 
@@ -44,7 +48,9 @@
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
 				firstName: editFirstName,
-				lastName: editLastName
+				lastName: editLastName,
+				location: editLocation,
+				notes: editNotes
 			})
 		});
 		editing = false;
@@ -72,6 +78,14 @@
 				<label for="lastName">Last name</label>
 				<input id="lastName" type="text" bind:value={editLastName} />
 			</div>
+			<div class="edit-field">
+				<label for="location">Location</label>
+				<input id="location" type="text" bind:value={editLocation} placeholder="City, neighborhood, etc." />
+			</div>
+			<div class="edit-field">
+				<label for="contactNotes">Notes</label>
+				<textarea id="contactNotes" bind:value={editNotes} placeholder="Any notes about this person..."></textarea>
+			</div>
 			<div class="edit-actions">
 				<button class="save-btn" onclick={saveEdit}>Save</button>
 				<button class="cancel-btn" onclick={cancelEdit}>Cancel</button>
@@ -82,6 +96,16 @@
 			<h1>{data.contact.name}</h1>
 			<button class="edit-btn" onclick={startEdit}>Edit</button>
 		</div>
+		{#if data.contact.location || data.contact.notes}
+			<div class="contact-info">
+				{#if data.contact.location}
+					<p class="contact-location">{data.contact.location}</p>
+				{/if}
+				{#if data.contact.notes}
+					<p class="contact-notes">{data.contact.notes}</p>
+				{/if}
+			</div>
+		{/if}
 	{/if}
 
 	{#if data.interactions.length === 0}
@@ -208,9 +232,21 @@
 		font-family: inherit;
 	}
 
-	.edit-field input:focus {
+	.edit-field input:focus,
+	.edit-field textarea:focus {
 		outline: none;
 		border-color: #007bff;
+	}
+
+	.edit-field textarea {
+		width: 100%;
+		padding: 10px 12px;
+		border: 2px solid #e0e0e0;
+		border-radius: 6px;
+		font-size: 15px;
+		font-family: inherit;
+		min-height: 80px;
+		resize: vertical;
 	}
 
 	.edit-actions {
@@ -244,6 +280,31 @@
 
 	.cancel-btn:hover {
 		background: #5a6268;
+	}
+
+	.contact-info {
+		background: white;
+		border-radius: 12px;
+		padding: 16px 20px;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+		margin-bottom: 24px;
+	}
+
+	.contact-location {
+		color: #666;
+		margin: 0 0 8px 0;
+		font-size: 14px;
+	}
+
+	.contact-location::before {
+		content: '📍 ';
+	}
+
+	.contact-notes {
+		color: #555;
+		margin: 0;
+		line-height: 1.5;
+		white-space: pre-wrap;
 	}
 
 	.empty {

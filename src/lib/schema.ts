@@ -23,6 +23,8 @@ export const contacts = pgTable('contacts', {
 		.notNull(),
 	firstName: text('first_name').notNull(),
 	lastName: text('last_name').notNull(),
+	location: text('location').default('').notNull(),
+	notes: text('notes').default('').notNull(),
 	createdAt: timestamp('created_at').defaultNow().notNull()
 });
 

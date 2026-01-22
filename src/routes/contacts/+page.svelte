@@ -1,6 +1,6 @@
 <script lang="ts">
 	let { data } = $props();
-	let sortBy = $state<'recent' | 'added' | 'firstName' | 'lastName'>('recent');
+	let sortBy = $state<'recent' | 'added' | 'firstName' | 'lastName' | 'noLastName'>('recent');
 
 	const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
 	const ONE_MONTH = 30 * 24 * 60 * 60 * 1000;
@@ -11,7 +11,20 @@
 			case 'firstName':
 				return contacts.sort((a, b) => a.firstName.localeCompare(b.firstName));
 			case 'lastName':
-				return contacts.sort((a, b) => a.lastName.localeCompare(b.lastName));
+				// Contacts with last names first (alphabetically), then those without
+				return contacts.sort((a, b) => {
+					const aHasLast = a.lastName.length > 0;
+					const bHasLast = b.lastName.length > 0;
+					if (aHasLast && !bHasLast) return -1;
+					if (!aHasLast && bHasLast) return 1;
+					if (aHasLast && bHasLast) return a.lastName.localeCompare(b.lastName);
+					return a.firstName.localeCompare(b.firstName);
+				});
+			case 'noLastName':
+				// Only show contacts without last names, sorted by first name
+				return contacts
+					.filter(c => !c.lastName)
+					.sort((a, b) => a.firstName.localeCompare(b.firstName));
 			case 'added':
 				return contacts.sort((a, b) =>
 					new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -83,7 +96,7 @@
 				class:active={sortBy === 'added'}
 				onclick={() => (sortBy = 'added')}
 			>
-				Added
+				Newest
 			</button>
 			<button
 				class="sort-btn"
@@ -98,6 +111,13 @@
 				onclick={() => (sortBy = 'lastName')}
 			>
 				Last
+			</button>
+			<button
+				class="sort-btn"
+				class:active={sortBy === 'noLastName'}
+				onclick={() => (sortBy = 'noLastName')}
+			>
+				No Last
 			</button>
 		</div>
 
