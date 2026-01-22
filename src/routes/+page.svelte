@@ -92,7 +92,7 @@
 				id="notes"
 				bind:value={notes}
 				oninput={handleNotesInput}
-				placeholder="Lunch at Sweetgreen, talked about funny health things..."
+				placeholder="Interaction notes, e.g. chatted about bands at Frank's party, got pizza at L'Industrie"
 			></textarea>
 			{#if saveStatus}
 				<div class="save-status" class:saved={saveStatus === 'Saved'}>{saveStatus}</div>

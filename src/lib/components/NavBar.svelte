@@ -4,10 +4,10 @@
 	let { username }: { username: string } = $props();
 
 	const navItems = [
-		{ href: '/contacts', label: 'Contacts 👯', title: 'All contacts' },
-		{ href: '/contacts/new', label: '✚👯', title: 'Add contact' },
-		{ href: '/interactions', label: 'Interactions ✨', title: 'All interactions' },
 		{ href: '/', label: '✚✨', title: 'Log interaction' },
+		{ href: '/contacts/new', label: '✚👯', title: 'Add contact' },
+		{ href: '/interactions', label: 'Interactions✨', title: 'All interactions' },
+		{ href: '/contacts', label: 'Contacts👯', title: 'All contacts' },
 	];
 </script>
 
@@ -43,29 +43,25 @@
 
 	.nav {
 		display: flex;
-		gap: 8px;
+		gap: 16px;
 	}
 
 	.nav-btn {
-		padding: 6px 12px;
-		border: 1px solid #ddd;
-		background: white;
-		border-radius: 6px;
 		font-size: 14px;
-		cursor: pointer;
-		transition: all 0.15s;
+		font-weight: 600;
 		text-decoration: none;
-		color: #333;
+		color: #555;
+		padding: 6px 0;
+		border-bottom: 2px solid transparent;
 	}
 
 	.nav-btn:hover {
-		border-color: #007bff;
+		color: #333;
 	}
 
 	.nav-btn.active {
-		background: #007bff;
-		color: white;
-		border-color: #007bff;
+		color: #333;
+		border-bottom-color: #007bff;
 	}
 
 	.user-section {
