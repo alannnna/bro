@@ -3,12 +3,19 @@
 
 	let { data } = $props();
 	let sortBy = $state<'recent' | 'added' | 'firstName' | 'lastName' | 'noLastName'>('recent');
+	let search = $state('');
 
 	const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
 	const ONE_MONTH = 30 * 24 * 60 * 60 * 1000;
 
 	let sortedContacts = $derived(() => {
-		const contacts = [...data.contacts];
+		let contacts = [...data.contacts];
+
+		// Filter by search
+		if (search.trim()) {
+			const q = search.toLowerCase();
+			contacts = contacts.filter(c => c.name.toLowerCase().includes(q));
+		}
 		switch (sortBy) {
 			case 'firstName':
 				return contacts.sort((a, b) => a.firstName.localeCompare(b.firstName));
@@ -79,6 +86,13 @@
 	{#if data.contacts.length === 0}
 		<p class="empty">No contacts yet. Log an interaction to add your first contact.</p>
 	{:else}
+		<input
+			type="text"
+			class="search"
+			placeholder="Search contacts..."
+			bind:value={search}
+		/>
+
 		<div class="sort-controls">
 			<span class="sort-label">Sort by:</span>
 			<button
@@ -148,6 +162,20 @@
 		color: #666;
 		text-align: center;
 		padding: 40px 20px;
+	}
+
+	.search {
+		width: 100%;
+		padding: 10px 12px;
+		border: 2px solid #e0e0e0;
+		border-radius: 8px;
+		font-size: 15px;
+		margin-bottom: 16px;
+	}
+
+	.search:focus {
+		outline: none;
+		border-color: #007bff;
 	}
 
 	.sort-controls {
