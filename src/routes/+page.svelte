@@ -113,17 +113,17 @@
 		</div>
 
 		<div class="section">
-			<label>Who?</label>
+			<span class="field-label">Who?</span>
 			<ContactTagInput bind:selectedContacts />
 		</div>
 
 		<div class="section">
-			<label>When?</label>
+			<span class="field-label">When?</span>
 			<DayPicker bind:selectedDayOffset />
 		</div>
 
 		<div class="section">
-			<label>How was it? (optional)</label>
+			<span class="field-label">How was it? (optional)</span>
 			<div class="stars">
 				{#each [1, 2, 3, 4, 5] as star}
 					<button
@@ -186,7 +186,8 @@
 		margin-bottom: 0;
 	}
 
-	label {
+	label,
+	.field-label {
 		display: block;
 		margin-bottom: 8px;
 		font-weight: 500;

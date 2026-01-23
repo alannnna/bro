@@ -135,19 +135,19 @@
 					{#if editingId === interaction.id}
 						<div class="edit-form">
 							<div class="edit-field">
-								<label>Who</label>
+								<span class="field-label">Who</span>
 								<ContactTagInput bind:selectedContacts={editContacts} />
 							</div>
 							<div class="edit-field">
-								<label>Notes</label>
-								<textarea bind:value={editNotes}></textarea>
+								<label for="edit-notes">Notes</label>
+								<textarea id="edit-notes" bind:value={editNotes}></textarea>
 							</div>
 							<div class="edit-field">
-								<label>When</label>
+								<span class="field-label">When</span>
 								<DayPicker bind:selectedDayOffset={editDayOffset} bind:existingDate={editExistingDate} />
 							</div>
 							<div class="edit-field">
-								<label>Rating</label>
+								<span class="field-label">Rating</span>
 								<div class="stars">
 									{#each [1, 2, 3, 4, 5] as star}
 										<button
@@ -322,7 +322,8 @@
 		gap: 6px;
 	}
 
-	.edit-field label {
+	.edit-field label,
+	.edit-field .field-label {
 		font-size: 13px;
 		font-weight: 500;
 		color: #555;
