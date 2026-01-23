@@ -60,18 +60,23 @@
 	function formatRelativeTime(dateStr: string | null): string {
 		if (!dateStr) return 'No interactions';
 		const date = new Date(dateStr);
-		const now = Date.now();
-		const elapsed = now - date.getTime();
+		const now = new Date();
 
-		const minutes = Math.floor(elapsed / (1000 * 60));
-		const hours = Math.floor(elapsed / (1000 * 60 * 60));
+		// Check if same calendar day
+		const isToday = date.toDateString() === now.toDateString();
+		if (isToday) return 'today';
+
+		// Check if yesterday
+		const yesterday = new Date(now);
+		yesterday.setDate(yesterday.getDate() - 1);
+		const isYesterday = date.toDateString() === yesterday.toDateString();
+		if (isYesterday) return 'yesterday';
+
+		const elapsed = now.getTime() - date.getTime();
 		const days = Math.floor(elapsed / (1000 * 60 * 60 * 24));
 		const weeks = Math.floor(days / 7);
 		const months = Math.floor(days / 30);
 
-		if (minutes < 1) return 'Just now';
-		if (minutes < 60) return `${minutes}m ago`;
-		if (hours < 24) return `${hours}h ago`;
 		if (days < 7) return `${days}d ago`;
 		if (weeks < 4) return `${weeks}w ago`;
 		return `${months}mo ago`;
