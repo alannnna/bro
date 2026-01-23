@@ -8,19 +8,20 @@
 	const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
 	const ONE_MONTH = 30 * 24 * 60 * 60 * 1000;
 
-	let sortedContacts = $derived(() => {
-		let contacts = [...data.contacts];
+	type Contact = typeof data.contacts[0];
 
-		// Filter by search
-		if (search.trim()) {
-			const q = search.toLowerCase();
-			contacts = contacts.filter(c => c.name.toLowerCase().includes(q));
-		}
+	interface OtherMatch {
+		contact: Contact;
+		field: 'location' | 'notes';
+		matchText: string;
+		matchIndex: number;
+	}
+
+	function sortContacts(contacts: Contact[]): Contact[] {
 		switch (sortBy) {
 			case 'firstName':
 				return contacts.sort((a, b) => a.firstName.localeCompare(b.firstName));
 			case 'lastName':
-				// Contacts with last names first (alphabetically), then those without
 				return contacts.sort((a, b) => {
 					const aHasLast = a.lastName.length > 0;
 					const bHasLast = b.lastName.length > 0;
@@ -30,7 +31,6 @@
 					return a.firstName.localeCompare(b.firstName);
 				});
 			case 'noLastName':
-				// Only show contacts without last names, sorted by first name
 				return contacts
 					.filter(c => !c.lastName)
 					.sort((a, b) => a.firstName.localeCompare(b.firstName));
@@ -47,7 +47,67 @@
 					return new Date(b.lastInteractionAt).getTime() - new Date(a.lastInteractionAt).getTime();
 				});
 		}
+	}
+
+	let nameMatches = $derived(() => {
+		let contacts = [...data.contacts];
+		if (!search.trim()) {
+			return sortContacts(contacts);
+		}
+		const q = search.toLowerCase();
+		const matches = contacts.filter(c => c.name.toLowerCase().includes(q));
+		return sortContacts(matches);
 	});
+
+	let otherMatches = $derived(() => {
+		if (!search.trim()) return [];
+		const q = search.toLowerCase();
+		const nameMatchIds = new Set(nameMatches().map(c => c.id));
+		const matches: OtherMatch[] = [];
+
+		for (const contact of data.contacts) {
+			if (nameMatchIds.has(contact.id)) continue;
+
+			const locationIndex = contact.location.toLowerCase().indexOf(q);
+			if (locationIndex !== -1) {
+				matches.push({
+					contact,
+					field: 'location',
+					matchText: contact.location,
+					matchIndex: locationIndex
+				});
+				continue;
+			}
+
+			const notesIndex = contact.notes.toLowerCase().indexOf(q);
+			if (notesIndex !== -1) {
+				matches.push({
+					contact,
+					field: 'notes',
+					matchText: contact.notes,
+					matchIndex: notesIndex
+				});
+			}
+		}
+
+		return matches;
+	});
+
+	function getMatchSnippet(text: string, matchIndex: number, query: string): { before: string; match: string; after: string } {
+		const contextChars = 20;
+		const start = Math.max(0, matchIndex - contextChars);
+		const end = Math.min(text.length, matchIndex + query.length + contextChars);
+
+		let before = text.slice(start, matchIndex);
+		if (start > 0) before = '...' + before;
+
+		const match = text.slice(matchIndex, matchIndex + query.length);
+
+		let after = text.slice(matchIndex + query.length, end);
+		if (end < text.length) after = after + '...';
+
+		return { before, match, after };
+	}
 
 	function getTimeSinceClass(lastInteractionAt: string | null): string {
 		if (!lastInteractionAt) return 'stale-month';
@@ -137,16 +197,45 @@
 			</button>
 		</div>
 
-		<ul class="contact-list">
-			{#each sortedContacts() as contact}
-				<li>
-					<a href="/contacts/{contact.id}" class="contact-item {getTimeSinceClass(contact.lastInteractionAt)}">
-						<span class="contact-name">{contact.name}</span>
-						<span class="contact-time">{formatRelativeTime(contact.lastInteractionAt)}</span>
-					</a>
-				</li>
-			{/each}
-		</ul>
+		{#if nameMatches().length > 0}
+			<ul class="contact-list">
+				{#each nameMatches() as contact}
+					<li>
+						<a href="/contacts/{contact.id}" class="contact-item {getTimeSinceClass(contact.lastInteractionAt)}">
+							<span class="contact-name">{contact.name}</span>
+							<span class="contact-time">{formatRelativeTime(contact.lastInteractionAt)}</span>
+						</a>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+
+		{#if otherMatches().length > 0}
+			<div class="other-matches-section">
+				<h3 class="other-matches-header">Matches in {search.trim() ? 'other fields' : ''}</h3>
+				<ul class="contact-list">
+					{#each otherMatches() as { contact, field, matchText, matchIndex }}
+						{@const snippet = getMatchSnippet(matchText, matchIndex, search)}
+						<li>
+							<a href="/contacts/{contact.id}" class="contact-item {getTimeSinceClass(contact.lastInteractionAt)}">
+								<div class="contact-info">
+									<span class="contact-name">{contact.name}</span>
+									<span class="match-context">
+										<span class="match-field">{field}:</span>
+										{snippet.before}<mark class="highlight">{snippet.match}</mark>{snippet.after}
+									</span>
+								</div>
+								<span class="contact-time">{formatRelativeTime(contact.lastInteractionAt)}</span>
+							</a>
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
+
+		{#if search.trim() && nameMatches().length === 0 && otherMatches().length === 0}
+			<p class="no-results">No contacts found matching "{search}"</p>
+		{/if}
 	{/if}
 
 </div>
@@ -277,6 +366,51 @@
 
 	.stale-month .contact-time {
 		color: #cc4444;
+	}
+
+	.other-matches-section {
+		margin-top: 24px;
+	}
+
+	.other-matches-header {
+		font-size: 14px;
+		color: #666;
+		margin: 0 0 12px 0;
+		font-weight: 500;
+	}
+
+	.contact-info {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		min-width: 0;
+		flex: 1;
+	}
+
+	.match-context {
+		font-size: 13px;
+		color: #666;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.match-field {
+		color: #888;
+		margin-right: 4px;
+	}
+
+	.highlight {
+		background: #fff3cd;
+		color: #856404;
+		padding: 1px 2px;
+		border-radius: 2px;
+	}
+
+	.no-results {
+		color: #666;
+		text-align: center;
+		padding: 40px 20px;
 	}
 
 </style>
