@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import ContactTagInput from '$lib/components/ContactTagInput.svelte';
+	import DayPicker from '$lib/components/DayPicker.svelte';
 	import NavBar from '$lib/components/NavBar.svelte';
 
 	let { data } = $props();
@@ -15,6 +16,15 @@
 	let editNotes = $state('');
 	let editRating = $state(0);
 	let hoverRating = $state(0);
+	let editDayOffset = $state(0);
+	let editExistingDate = $state<string | undefined>(undefined);
+
+	function getTimestampForOffset(offset: number): string {
+		const date = new Date();
+		date.setDate(date.getDate() - offset);
+		date.setHours(12, 0, 0, 0);
+		return date.toISOString();
+	}
 
 	function formatDate(dateStr: string): string {
 		const date = new Date(dateStr);
@@ -38,6 +48,8 @@
 		editContacts = interaction.contactNames.map((name) => ({ name, isNew: false }));
 		editNotes = interaction.notes;
 		editRating = interaction.rating || 0;
+		editDayOffset = 0;
+		editExistingDate = interaction.createdAt;
 	}
 
 	function cancelEdit() {
@@ -45,20 +57,29 @@
 		editContacts = [];
 		editNotes = '';
 		editRating = 0;
+		editDayOffset = 0;
+		editExistingDate = undefined;
 	}
 
 	async function saveEdit() {
 		if (!editingId || editContacts.length === 0) return;
 
 		const contactNames = editContacts.map((c) => c.name);
+		const payload: { contactNames: string[]; notes: string; rating: number | null; timestamp?: string } = {
+			contactNames,
+			notes: editNotes,
+			rating: editRating || null
+		};
+
+		// Only include timestamp if user selected a different date
+		if (editExistingDate === undefined) {
+			payload.timestamp = getTimestampForOffset(editDayOffset);
+		}
+
 		await fetch(`/api/interactions/${editingId}`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				contactNames,
-				notes: editNotes,
-				rating: editRating || null
-			})
+			body: JSON.stringify(payload)
 		});
 
 		editingId = null;
@@ -120,6 +141,10 @@
 							<div class="edit-field">
 								<label>Notes</label>
 								<textarea bind:value={editNotes}></textarea>
+							</div>
+							<div class="edit-field">
+								<label>When</label>
+								<DayPicker bind:selectedDayOffset={editDayOffset} bind:existingDate={editExistingDate} />
 							</div>
 							<div class="edit-field">
 								<label>Rating</label>

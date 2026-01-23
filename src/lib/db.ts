@@ -282,7 +282,7 @@ export async function createInteraction(
 export async function updateInteraction(
 	userId: number,
 	id: number,
-	updates: { rating?: number; notes?: string; contactNames?: string[] }
+	updates: { rating?: number; notes?: string; contactNames?: string[]; timestamp?: string }
 ): Promise<Interaction | null> {
 	// Check ownership
 	const [existing] = await db.select().from(schema.interactions)
@@ -295,11 +295,12 @@ export async function updateInteraction(
 	if (!existing) return null;
 
 	// Update the interaction
-	const updateData: { rating?: number; notes?: string; updatedAt: Date } = {
+	const updateData: { rating?: number; notes?: string; updatedAt: Date; createdAt?: Date } = {
 		updatedAt: new Date()
 	};
 	if (updates.rating !== undefined) updateData.rating = updates.rating;
 	if (updates.notes !== undefined) updateData.notes = updates.notes;
+	if (updates.timestamp !== undefined) updateData.createdAt = new Date(updates.timestamp);
 
 	const [updated] = await db.update(schema.interactions)
 		.set(updateData)
