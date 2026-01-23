@@ -244,13 +244,19 @@ export async function createInteraction(
 	userId: number,
 	contactIds: number[],
 	rating: number | null,
-	notes: string = ''
+	notes: string = '',
+	createdAt?: Date
 ): Promise<Interaction> {
-	const [interaction] = await db.insert(schema.interactions).values({
+	const values: { userId: number; rating: number | null; notes: string; createdAt?: Date; updatedAt?: Date } = {
 		userId,
 		rating,
 		notes
-	}).returning();
+	};
+	if (createdAt) {
+		values.createdAt = createdAt;
+		values.updatedAt = createdAt;
+	}
+	const [interaction] = await db.insert(schema.interactions).values(values).returning();
 
 	// Insert junction table records
 	if (contactIds.length > 0) {

@@ -7,7 +7,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		throw error(401, 'Unauthorized');
 	}
 
-	const { contactNames, rating, notes } = await request.json();
+	const { contactNames, rating, notes, timestamp } = await request.json();
 
 	if (!contactNames || !Array.isArray(contactNames) || contactNames.length === 0) {
 		return json({ error: 'At least one contact name is required' }, { status: 400 });
@@ -17,7 +17,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		contactNames.map((name: string) => findOrCreateContact(locals.user!.id, name))
 	);
 	const contactIds = contacts.map((c) => c.id);
-	const interaction = await createInteraction(locals.user.id, contactIds, rating || null, notes || '');
+	const createdAt = timestamp ? new Date(timestamp) : undefined;
+	const interaction = await createInteraction(locals.user.id, contactIds, rating || null, notes || '', createdAt);
 
 	return json({
 		id: interaction.id,
