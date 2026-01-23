@@ -28,13 +28,18 @@
 
 	function formatDate(dateStr: string): string {
 		const date = new Date(dateStr);
+		const now = new Date();
+
+		if (date.toDateString() === now.toDateString()) return 'today';
+
+		const yesterday = new Date(now);
+		yesterday.setDate(yesterday.getDate() - 1);
+		if (date.toDateString() === yesterday.toDateString()) return 'yesterday';
+
 		return date.toLocaleDateString('en-US', {
 			weekday: 'short',
-			year: 'numeric',
 			month: 'short',
-			day: 'numeric',
-			hour: 'numeric',
-			minute: '2-digit'
+			day: 'numeric'
 		});
 	}
 
