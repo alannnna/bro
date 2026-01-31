@@ -367,6 +367,8 @@ export interface ContactWithLastInteraction {
 	notes: string;
 	createdAt: string;
 	lastInteractionAt: string | null;
+	interactionCount: number;
+	totalHearts: number;
 }
 
 export async function getAllContacts(userId: number): Promise<ContactWithLastInteraction[]> {
@@ -381,16 +383,17 @@ export async function getAllContacts(userId: number): Promise<ContactWithLastInt
 			.where(eq(schema.interactionContacts.contactId, contact.id));
 
 		let lastInteractionAt: string | null = null;
+		let totalHearts = 0;
 
 		if (junctionRecords.length > 0) {
 			const interactionIds = junctionRecords.map(r => r.interactionId);
-			const [lastInteraction] = await db.select().from(schema.interactions)
+			const interactions = await db.select().from(schema.interactions)
 				.where(inArray(schema.interactions.id, interactionIds))
-				.orderBy(desc(schema.interactions.createdAt))
-				.limit(1);
+				.orderBy(desc(schema.interactions.createdAt));
 
-			if (lastInteraction) {
-				lastInteractionAt = lastInteraction.createdAt.toISOString();
+			if (interactions.length > 0) {
+				lastInteractionAt = interactions[0].createdAt.toISOString();
+				totalHearts = interactions.reduce((sum, i) => sum + (i.rating ?? 0), 0);
 			}
 		}
 
@@ -403,7 +406,9 @@ export async function getAllContacts(userId: number): Promise<ContactWithLastInt
 			location: contact.location,
 			notes: contact.notes,
 			createdAt: contact.createdAt.toISOString(),
-			lastInteractionAt
+			lastInteractionAt,
+			interactionCount: junctionRecords.length,
+			totalHearts
 		});
 	}
 

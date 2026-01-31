@@ -2,7 +2,7 @@
 	import NavBar from '$lib/components/NavBar.svelte';
 
 	let { data } = $props();
-	let sortBy = $state<'recent' | 'added' | 'firstName' | 'lastName' | 'noLastName'>('recent');
+	let sortBy = $state<'recent' | 'added' | 'firstName' | 'lastName' | 'noLastName' | 'mostInteractions' | 'mostHearts'>('recent');
 	let search = $state('');
 
 	const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
@@ -34,6 +34,10 @@
 				return contacts
 					.filter(c => !c.lastName)
 					.sort((a, b) => a.firstName.localeCompare(b.firstName));
+			case 'mostInteractions':
+				return contacts.sort((a, b) => b.interactionCount - a.interactionCount);
+			case 'mostHearts':
+				return contacts.sort((a, b) => b.totalHearts - a.totalHearts);
 			case 'added':
 				return contacts.sort((a, b) =>
 					new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -195,6 +199,20 @@
 			>
 				No Last
 			</button>
+			<button
+				class="sort-btn"
+				class:active={sortBy === 'mostInteractions'}
+				onclick={() => (sortBy = 'mostInteractions')}
+			>
+				Most ✨
+			</button>
+			<button
+				class="sort-btn"
+				class:active={sortBy === 'mostHearts'}
+				onclick={() => (sortBy = 'mostHearts')}
+			>
+				Most ♥
+			</button>
 		</div>
 
 		{#if nameMatches().length > 0}
@@ -277,11 +295,29 @@
 		align-items: center;
 		gap: 8px;
 		margin-bottom: 16px;
+		overflow-x: auto;
+		padding-bottom: 8px;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.sort-controls::-webkit-scrollbar {
+		height: 4px;
+	}
+
+	.sort-controls::-webkit-scrollbar-track {
+		background: #f1f1f1;
+		border-radius: 2px;
+	}
+
+	.sort-controls::-webkit-scrollbar-thumb {
+		background: #ccc;
+		border-radius: 2px;
 	}
 
 	.sort-label {
 		color: #666;
 		font-size: 14px;
+		flex-shrink: 0;
 	}
 
 	.sort-btn {
@@ -292,6 +328,8 @@
 		font-size: 14px;
 		cursor: pointer;
 		transition: all 0.15s;
+		flex-shrink: 0;
+		white-space: nowrap;
 	}
 
 	.sort-btn:hover {
